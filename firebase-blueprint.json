@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "FiscalYear": {
+      "title": "FiscalYear",
+      "description": "Fiscal budget year definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "year": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "year"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Income or expense category definition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 150 },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "color": { "type": "string", "maxLength": 20 },
+        "icon": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "type", "color", "icon"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Income or expense record",
+      "type": "object",
+      "properties": {
+        "fiscalYear": { "type": "string", "maxLength": 50 },
+        "building": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "maxLength": 150 },
+        "date": { "type": "string", "maxLength": 30 },
+        "note": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["fiscalYear", "building", "type", "amount", "category", "date"]
+    },
+    "MonthlyBudget": {
+      "title": "MonthlyBudget",
+      "description": "Monthly budget target for a specific month YYYY-MM",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$" },
+        "amount": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["month", "amount"]
+    }
+  },
+  "firestore": {
+    "/fiscalYears/{yearId}": {
+      "schema": "FiscalYear",
+      "description": "Configurable fiscal budget years"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Dynamic categories for income and expense"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial transaction records"
+    },
+    "/budgets/{monthId}": {
+      "schema": "MonthlyBudget",
+      "description": "Monthly budget allocations"
+    }
+  }
+}

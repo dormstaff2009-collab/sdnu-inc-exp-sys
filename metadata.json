@@ -1,0 +1,6 @@
+{
+  "name": "ระบบจัดการรายรับรายจ่าย (SDNU Expense Tracker)",
+  "description": "เว็บแอปพลิเคชันจัดการรายรับ-รายจ่าย สรุปหมวดหมู่ แผนภูมิวงกลม และตั้งงบประมาณรายเดือน เชื่อมต่อ Firebase และ Google Login",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

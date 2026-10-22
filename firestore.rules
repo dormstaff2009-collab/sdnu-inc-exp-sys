@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /fiscalYears/{yearId} {
+      allow read: if true;
+      allow write: if isValidId(yearId);
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isValidId(categoryId);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow write: if isValidId(transactionId);
+    }
+
+    match /budgets/{monthId} {
+      allow read: if true;
+      allow write: if isValidId(monthId);
+    }
+
+    match /users/{userId} {
+      allow read, write: if isValidId(userId);
+    }
+  }
+}
