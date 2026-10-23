@@ -560,13 +560,10 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleClearAllTransactions = async () => {
-    if (!isAdmin) return;
     try {
       const colRef = collection(db, 'transactions');
       const snap = await getDocs(colRef);
-      for (const d of snap.docs) {
-        await deleteDoc(d.ref).catch(() => {});
-      }
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
     } catch (err) {
       console.warn('Clear all transactions error:', err);
     }
@@ -574,9 +571,10 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleLoadDemoData = async () => {
-    if (!isAdmin) return;
-    const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t) => ({
+    const timestamp = Date.now();
+    const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t, idx) => ({
       ...t,
+      id: `sample-${timestamp}-${idx}`,
       date: `${currentMonth}-${t.date.split('-')[2]}`,
     }));
     setTransactions(adjusted);
@@ -585,7 +583,7 @@ function ExpenseTrackerDashboard() {
         await setDoc(doc(db, 'transactions', t.id), t);
       }
     } catch (e) {
-      console.warn('Loading demo data error:', e);
+      console.warn('Loading sample data error:', e);
     }
   };
 

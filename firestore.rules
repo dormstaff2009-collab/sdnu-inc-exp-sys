@@ -15,7 +15,8 @@ service cloud.firestore {
 
     match /transactions/{transactionId} {
       allow read: if true;
-      allow write: if isValidId(transactionId);
+      allow delete: if isValidId(transactionId);
+      allow create, update: if isValidId(transactionId) && !transactionId.matches('^demo-.*');
     }
 
     match /budgets/{monthId} {
