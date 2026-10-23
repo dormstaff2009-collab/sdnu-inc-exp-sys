@@ -47,7 +47,7 @@ const INITIAL_DEMO_TRANSACTIONS: Transaction[] = [
     id: 'demo-inc-1',
     type: 'income',
     amount: 145000,
-    category: 'ค่าเช่าที่พัก (หักผ่านบัญชี)',
+    category: 'ค่าห้องพัก',
     building: 'อาคาร มน.นิเวศ 1-2',
     fiscalYear: 'ปี งปม.2569',
     date: '2026-10-01',
@@ -57,7 +57,7 @@ const INITIAL_DEMO_TRANSACTIONS: Transaction[] = [
     id: 'demo-inc-2',
     type: 'income',
     amount: 28000,
-    category: 'ค่าเช่าที่พัก (ไม่สามารถหักผ่านบัญชี)',
+    category: 'ค่าห้องพัก',
     building: 'อาคาร มน.นิเวศ 3-4',
     fiscalYear: 'ปี งปม.2569',
     date: '2026-10-05',
@@ -67,7 +67,7 @@ const INITIAL_DEMO_TRANSACTIONS: Transaction[] = [
     id: 'demo-inc-3',
     type: 'income',
     amount: 15600,
-    category: 'ค่าเช่าห้องพักรับรอง',
+    category: 'ค่าห้องพักรับรอง',
     building: 'อาคาร มน.นิเวศ 5',
     fiscalYear: 'ปี งปม.2569',
     date: '2026-10-10',
@@ -202,6 +202,26 @@ function ExpenseTrackerDashboard() {
           snapshot.forEach((docSnap) => {
             list.push({ id: docSnap.id, ...(docSnap.data() as Omit<CategoryItem, 'id'>) });
           });
+
+          // Auto-migrate legacy income categories in Firestore if found
+          const hasLegacy = list.some(
+            (c) =>
+              c.type === 'income' &&
+              (c.name.includes('ค่าเช่าที่พัก') || (c.id === 'inc-3' && c.name === 'ค่าเช่าห้องพักรับรอง') || c.id === 'inc-5')
+          );
+          if (hasLegacy) {
+            (async () => {
+              try {
+                await deleteDoc(doc(db, 'categories', 'inc-5')).catch(() => {});
+                for (const cat of DEFAULT_INCOME_CATEGORIES) {
+                  await setDoc(doc(db, 'categories', cat.id), cat);
+                }
+              } catch (e) {
+                console.warn('Auto-upgraded categories in Firestore:', e);
+              }
+            })();
+          }
+
           if (isMounted) setCategories(list);
         } else {
           // If Firestore collection is empty, retain defaults and seed to Firestore
@@ -271,7 +291,20 @@ function ExpenseTrackerDashboard() {
         if (!snapshot.empty) {
           const list: Transaction[] = [];
           snapshot.forEach((docSnap) => {
-            list.push({ id: docSnap.id, ...(docSnap.data() as Omit<Transaction, 'id'>) });
+            const data = docSnap.data() as Omit<Transaction, 'id'>;
+            let catName = data.category;
+            let needsUpdate = false;
+            if (catName === 'ค่าเช่าที่พัก (หักผ่านบัญชี)' || catName === 'ค่าเช่าที่พัก (ไม่สามารถหักผ่านบัญชี)') {
+              catName = 'ค่าห้องพัก';
+              needsUpdate = true;
+            } else if (catName === 'ค่าเช่าห้องพักรับรอง') {
+              catName = 'ค่าห้องพักรับรอง';
+              needsUpdate = true;
+            }
+            if (needsUpdate) {
+              updateDoc(docSnap.ref, { category: catName }).catch(() => {});
+            }
+            list.push({ id: docSnap.id, ...data, category: catName });
           });
           if (isMounted) setTransactions(list);
         } else {
@@ -379,6 +412,42 @@ function ExpenseTrackerDashboard() {
     }
   };
 
+  const handleEditCategory = async (
+    id: string,
+    updated: Omit<CategoryItem, 'id'>,
+    oldName?: string
+  ) => {
+    if (!isAdmin) return;
+    try {
+      const docRef = doc(db, 'categories', id);
+      await setDoc(docRef, { ...updated }, { merge: true });
+
+      // If category name was renamed, update all transactions using the old category name
+      if (oldName && oldName !== updated.name) {
+        const txColRef = collection(db, 'transactions');
+        const snap = await getDocs(txColRef);
+        for (const txDoc of snap.docs) {
+          const txData = txDoc.data();
+          if (txData.category === oldName && txData.type === updated.type) {
+            await updateDoc(txDoc.ref, { category: updated.name }).catch(() => {});
+          }
+        }
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.category === oldName && t.type === updated.type
+              ? { ...t, category: updated.name }
+              : t
+          )
+        );
+      }
+    } catch (err) {
+      console.warn('Editing category in Firestore:', err);
+    }
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
+    );
+  };
+
   const handleDeleteCategory = async (id: string, name: string) => {
     if (!isAdmin) return;
     try {
@@ -394,6 +463,13 @@ function ExpenseTrackerDashboard() {
     if (!isAdmin) return;
     try {
       // Overwrite categories in Firestore with default categories
+      const colRef = collection(db, 'categories');
+      const snap = await getDocs(colRef);
+      for (const d of snap.docs) {
+        if (!defaultCategories.some((dc) => dc.id === d.id)) {
+          await deleteDoc(d.ref).catch(() => {});
+        }
+      }
       for (const cat of defaultCategories) {
         await setDoc(doc(db, 'categories', cat.id), cat);
       }
@@ -957,6 +1033,7 @@ function ExpenseTrackerDashboard() {
         onClose={() => setIsCategoryModalOpen(false)}
         categories={categories}
         onAddCategory={handleAddCategory}
+        onEditCategory={handleEditCategory}
         onDeleteCategory={handleDeleteCategory}
         onResetDefaults={handleResetCategories}
       />

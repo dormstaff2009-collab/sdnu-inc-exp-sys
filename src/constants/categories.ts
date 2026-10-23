@@ -21,11 +21,10 @@ export const DEFAULT_EXPENSE_CATEGORIES: CategoryItem[] = [
 ];
 
 export const DEFAULT_INCOME_CATEGORIES: CategoryItem[] = [
-  { id: 'inc-1', name: 'ค่าเช่าที่พัก (หักผ่านบัญชี)', type: 'income', color: '#10B981', icon: 'Building2' },
-  { id: 'inc-2', name: 'ค่าเช่าที่พัก (ไม่สามารถหักผ่านบัญชี)', type: 'income', color: '#059669', icon: 'Receipt' },
-  { id: 'inc-3', name: 'ค่าเช่าห้องพักรับรอง', type: 'income', color: '#0EA5E9', icon: 'Hotel' },
-  { id: 'inc-4', name: 'ค่าบริการเครื่องซักผ้าหยอดเหรียญ', type: 'income', color: '#F59E0B', icon: 'Coins' },
-  { id: 'inc-5', name: 'อื่นๆ', type: 'income', color: '#64748B', icon: 'PlusCircle' },
+  { id: 'inc-1', name: 'ค่าห้องพัก', type: 'income', color: '#10B981', icon: 'Building2' },
+  { id: 'inc-2', name: 'ค่าห้องพักรับรอง', type: 'income', color: '#0EA5E9', icon: 'Hotel' },
+  { id: 'inc-3', name: 'ค่าบริการเครื่องซักผ้าหยอดเหรียญ', type: 'income', color: '#F59E0B', icon: 'Coins' },
+  { id: 'inc-4', name: 'อื่นๆ', type: 'income', color: '#64748B', icon: 'MoreHorizontal' },
 ];
 
 // Color palette options for adding custom categories
