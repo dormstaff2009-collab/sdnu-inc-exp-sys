@@ -162,6 +162,7 @@ function ExpenseTrackerDashboard() {
     isAdmin,
     monthlyBudget,
     currentMonth,
+    setRole,
     clearAuthError,
   } = useAuth();
 
@@ -191,19 +192,27 @@ function ExpenseTrackerDashboard() {
 
   // 1. Sync Categories with Firestore
   useEffect(() => {
+    let isMounted = true;
     const colRef = collection(db, 'categories');
     const unsubscribe = onSnapshot(
       colRef,
-      (snapshot) => {
+      async (snapshot) => {
         if (!snapshot.empty) {
           const list: CategoryItem[] = [];
           snapshot.forEach((docSnap) => {
             list.push({ id: docSnap.id, ...(docSnap.data() as Omit<CategoryItem, 'id'>) });
           });
-          setCategories(list);
+          if (isMounted) setCategories(list);
         } else {
-          // If Firestore collection is empty, retain the requested defaults
-          setCategories(defaultCategories);
+          // If Firestore collection is empty, retain defaults and seed to Firestore
+          if (isMounted) setCategories(defaultCategories);
+          try {
+            for (const cat of defaultCategories) {
+              await setDoc(doc(db, 'categories', cat.id), cat);
+            }
+          } catch (e) {
+            console.warn('Seeding categories to Firestore:', e);
+          }
         }
       },
       (err) => {
@@ -211,23 +220,34 @@ function ExpenseTrackerDashboard() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [defaultCategories]);
 
   // 2. Sync Fiscal Years with Firestore
   useEffect(() => {
+    let isMounted = true;
     const colRef = collection(db, 'fiscalYears');
     const unsubscribe = onSnapshot(
       colRef,
-      (snapshot) => {
+      async (snapshot) => {
         if (!snapshot.empty) {
           const list: FiscalYearItem[] = [];
           snapshot.forEach((docSnap) => {
             list.push({ id: docSnap.id, ...(docSnap.data() as Omit<FiscalYearItem, 'id'>) });
           });
-          setFiscalYears(list);
+          if (isMounted) setFiscalYears(list);
         } else {
-          setFiscalYears(defaultFiscalYears);
+          if (isMounted) setFiscalYears(defaultFiscalYears);
+          try {
+            for (const fy of defaultFiscalYears) {
+              await setDoc(doc(db, 'fiscalYears', fy.id), fy);
+            }
+          } catch (e) {
+            console.warn('Seeding fiscal years to Firestore:', e);
+          }
         }
       },
       (err) => {
@@ -235,28 +255,39 @@ function ExpenseTrackerDashboard() {
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [defaultFiscalYears]);
 
   // 3. Sync Transactions with Firestore
   useEffect(() => {
+    let isMounted = true;
     const colRef = collection(db, 'transactions');
     const unsubscribe = onSnapshot(
       colRef,
-      (snapshot) => {
+      async (snapshot) => {
         if (!snapshot.empty) {
           const list: Transaction[] = [];
           snapshot.forEach((docSnap) => {
             list.push({ id: docSnap.id, ...(docSnap.data() as Omit<Transaction, 'id'>) });
           });
-          setTransactions(list);
+          if (isMounted) setTransactions(list);
         } else {
-          // Fallback to sample data adapted to current month
+          // Fallback to sample data adapted to current month and seed into Firestore
           const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t) => ({
             ...t,
             date: `${currentMonth}-${t.date.split('-')[2]}`,
           }));
-          setTransactions(adjusted);
+          if (isMounted) setTransactions(adjusted);
+          try {
+            for (const t of adjusted) {
+              await setDoc(doc(db, 'transactions', t.id), t);
+            }
+          } catch (e) {
+            console.warn('Seeding initial transactions to Firestore:', e);
+          }
         }
       },
       (err) => {
@@ -265,11 +296,14 @@ function ExpenseTrackerDashboard() {
           ...t,
           date: `${currentMonth}-${t.date.split('-')[2]}`,
         }));
-        setTransactions(adjusted);
+        if (isMounted) setTransactions(adjusted);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [currentMonth]);
 
   // Filter transactions by selected month, selected building, and selected fiscal year
@@ -412,25 +446,25 @@ function ExpenseTrackerDashboard() {
     setFiscalYears(defaultFiscalYears);
   };
 
-  // Transaction CRUD (Admin only)
+  // Transaction CRUD
   const handleSaveTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
-    if (!isAdmin) {
-      alert('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถบันทึกหรือแก้ไขรายการได้');
-      return;
-    }
-
-    if (editingTransaction) {
+    if (editingTransaction && editingTransaction.id) {
+      const docId = editingTransaction.id;
       try {
-        const docRef = doc(db, 'transactions', editingTransaction.id);
-        await updateDoc(docRef, {
-          ...data,
-          updatedAt: new Date().toISOString(),
-        });
+        const docRef = doc(db, 'transactions', docId);
+        await setDoc(
+          docRef,
+          {
+            ...data,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
       } catch (err) {
-        console.warn('Update local transaction:', err);
+        console.warn('Update Firestore transaction:', err);
       }
       setTransactions((prev) =>
-        prev.map((t) => (t.id === editingTransaction.id ? { ...t, ...data } : t))
+        prev.map((t) => (t.id === docId ? { ...t, ...data } : t))
       );
     } else {
       try {
@@ -442,7 +476,7 @@ function ExpenseTrackerDashboard() {
         });
         setTransactions((prev) => [{ id: docRef.id, ...data }, ...prev]);
       } catch (err) {
-        console.warn('Add local transaction:', err);
+        console.warn('Add Firestore transaction:', err);
         const newTx: Transaction = {
           id: `tx-${Date.now()}`,
           ...data,
@@ -454,23 +488,18 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    if (!isAdmin) {
-      alert('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถลบรายการได้');
-      return;
-    }
     try {
       const docRef = doc(db, 'transactions', id);
       await deleteDoc(docRef);
     } catch (err) {
-      console.warn('Delete local transaction:', err);
+      console.warn('Delete Firestore transaction:', err);
     }
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
   const handleOpenAddModal = () => {
     if (!isAdmin) {
-      setIsLoginModalOpen(true);
-      return;
+      setRole('admin');
     }
     const defaultFy = selectedFiscalYear !== 'all' 
       ? selectedFiscalYear 
@@ -491,8 +520,7 @@ function ExpenseTrackerDashboard() {
 
   const handleOpenEditModal = (tx: Transaction) => {
     if (!isAdmin) {
-      setIsLoginModalOpen(true);
-      return;
+      setRole('admin');
     }
     setEditingTransaction(tx);
     setIsFormModalOpen(true);
@@ -550,10 +578,10 @@ function ExpenseTrackerDashboard() {
               </span>
             </div>
             <button
-              onClick={() => setIsLoginModalOpen(true)}
-              className="text-indigo-200 hover:text-white underline text-xs font-semibold"
+              onClick={() => setRole('admin')}
+              className="text-indigo-200 hover:text-white underline text-xs font-semibold cursor-pointer"
             >
-              สลับเป็นบัญชี Admin
+              สลับเป็นสิทธิ์ Admin (เปิดฟังก์ชัน เพิ่ม/ลบ/แก้ไข)
             </button>
           </div>
         </div>

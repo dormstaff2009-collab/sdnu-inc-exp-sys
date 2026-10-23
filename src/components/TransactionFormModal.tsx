@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Check, Building2, Calendar } from 'lucide-react';
 import { CategoryItem, Transaction, TransactionType, BUILDINGS, DEFAULT_FISCAL_YEARS, FiscalYearItem } from '../types/finance';
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../constants/categories';
@@ -21,7 +21,7 @@ export const TransactionFormModal: React.FC<Props> = ({
   categories = [],
   fiscalYears = [],
 }) => {
-  const isEditing = Boolean(initialData);
+  const isEditing = Boolean(initialData && initialData.id);
 
   const availableFiscalYears = fiscalYears.length > 0
     ? fiscalYears.map((f) => f.year)
@@ -49,11 +49,11 @@ export const TransactionFormModal: React.FC<Props> = ({
   const [type, setType] = useState<TransactionType>(initialData?.type || 'expense');
 
   // 4. Amount
-  const [amount, setAmount] = useState<string>(initialData ? initialData.amount.toString() : '');
+  const [amount, setAmount] = useState<string>(initialData?.amount ? initialData.amount.toString() : '');
 
   // 5. Category
   const [category, setCategory] = useState<string>(
-    initialData?.category || (type === 'expense' ? availableExpense[0].name : availableIncome[0].name)
+    initialData?.category || (type === 'expense' ? availableExpense[0]?.name : availableIncome[0]?.name) || ''
   );
 
   // 6. Date
@@ -66,6 +66,30 @@ export const TransactionFormModal: React.FC<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Synchronize form whenever modal opens or initialData changes
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFiscalYear(initialData.fiscalYear || availableFiscalYears[availableFiscalYears.length - 2] || 'ปี งปม.2569');
+        setBuilding(initialData.building || BUILDINGS[0]);
+        setType(initialData.type || 'expense');
+        setAmount(initialData.amount ? initialData.amount.toString() : '');
+        setCategory(initialData.category || '');
+        setDate(initialData.date || new Date().toISOString().split('T')[0]);
+        setNote(initialData.note || '');
+      } else {
+        setFiscalYear(availableFiscalYears[availableFiscalYears.length - 2] || 'ปี งปม.2569');
+        setBuilding(BUILDINGS[0]);
+        setType('expense');
+        setAmount('');
+        setCategory(availableExpense[0]?.name || '');
+        setDate(new Date().toISOString().split('T')[0]);
+        setNote('');
+      }
+      setValidationError(null);
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 

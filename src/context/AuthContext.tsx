@@ -13,6 +13,7 @@ interface AuthContextType {
   currentMonth: string;
   monthlyBudget: number;
   setCurrentMonth: (month: string) => void;
+  setRole: (role: UserRole) => void;
   signInWithGoogle: () => Promise<void>;
   signInAdmin: (username: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -37,9 +38,25 @@ const ADMIN_CREDENTIALS = {
 
 const SESSION_STORAGE_KEY = 'sdnu_auth_session';
 
+const DEFAULT_ADMIN_SESSION: AuthSession = {
+  role: 'admin',
+  username: 'adminsdnu',
+  displayName: 'ผู้ดูแลระบบ (Admin) - sdnu-inc-exp-sys',
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
+    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved) as AuthSession;
+      } catch (e) {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    }
+    return DEFAULT_ADMIN_SESSION;
+  });
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState<string>(getDefaultMonth());
   const [monthlyBudget, setMonthlyBudget] = useState<number>(0);
@@ -53,20 +70,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(saved) as AuthSession;
         setAuthSession(parsed);
       } catch (e) {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        setAuthSession(DEFAULT_ADMIN_SESSION);
       }
+    } else {
+      setAuthSession(DEFAULT_ADMIN_SESSION);
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // If logged in via Google:
-        // Check if admin email or standard viewer
-        const isEmailAdmin = currentUser.email === 'dormstaff2009@gmail.com';
+        // Logged in with Google account (dormstaff2009@gmail.com, etc.)
         const session: AuthSession = {
-          role: isEmailAdmin ? 'admin' : 'viewer',
+          role: 'admin', // Full access to add, edit, delete
           email: currentUser.email || '',
-          displayName: currentUser.displayName || (isEmailAdmin ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ใช้งานทั่วไป (Gmail)'),
+          displayName: currentUser.displayName || (currentUser.email === 'dormstaff2009@gmail.com' ? 'ผู้ดูแลระบบ (Admin)' : currentUser.email || 'ผู้ใช้งานระบบ'),
           photoURL: currentUser.photoURL || '',
         };
         setAuthSession(session);
@@ -154,6 +171,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const setRole = (newRole: UserRole) => {
+    setAuthSession((prev) => {
+      const updated: AuthSession = {
+        role: newRole,
+        username: prev?.username || (newRole === 'admin' ? 'adminsdnu' : undefined),
+        displayName: newRole === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ใช้งานทั่วไป (Gmail)',
+        email: prev?.email,
+        photoURL: prev?.photoURL,
+      };
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const isAdmin = authSession?.role === 'admin';
   const role = authSession?.role || null;
 
@@ -168,6 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentMonth,
         monthlyBudget,
         setCurrentMonth,
+        setRole,
         signInWithGoogle,
         signInAdmin,
         logout,

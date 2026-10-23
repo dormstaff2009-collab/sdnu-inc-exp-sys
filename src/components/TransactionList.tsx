@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   Tag,
   Building2,
+  Plus,
 } from 'lucide-react';
 import { Transaction, TransactionType, BUILDINGS, FiscalYearItem, DEFAULT_FISCAL_YEARS } from '../types/finance';
 import { getCategoryMeta } from '../constants/categories';
@@ -145,12 +146,21 @@ export const TransactionList: React.FC<Props> = ({
             />
           </div>
 
+          {/* Add Transaction button */}
+          <button
+            onClick={onAddNew}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>เพิ่มรายการใหม่</span>
+          </button>
+
           {/* Export CSV button */}
           <button
             onClick={exportToCSV}
             disabled={filteredTransactions.length === 0}
             title="ส่งออกไฟล์ CSV"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40 cursor-pointer"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
             <span className="hidden sm:inline">ส่งออก CSV</span>
@@ -340,25 +350,25 @@ export const TransactionList: React.FC<Props> = ({
                     </span>
                   </div>
 
-                  {/* Edit & Delete Action Buttons (Admin Only) */}
-                  {isAdmin && (
-                    <div className="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => onEdit(tx)}
-                        title="แก้ไขรายการ"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(tx.id)}
-                        title="ลบรายการ"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  {/* Edit & Delete Action Buttons */}
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <button
+                      onClick={() => onEdit(tx)}
+                      title="แก้ไขรายการ"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span className="hidden sm:inline">แก้ไข</span>
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(tx.id)}
+                      title="ลบรายการ"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span className="hidden sm:inline">ลบ</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
