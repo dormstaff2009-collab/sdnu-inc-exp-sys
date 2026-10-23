@@ -308,28 +308,14 @@ function ExpenseTrackerDashboard() {
           });
           if (isMounted) setTransactions(list);
         } else {
-          // Fallback to sample data adapted to current month and seed into Firestore
-          const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t) => ({
-            ...t,
-            date: `${currentMonth}-${t.date.split('-')[2]}`,
-          }));
-          if (isMounted) setTransactions(adjusted);
-          try {
-            for (const t of adjusted) {
-              await setDoc(doc(db, 'transactions', t.id), t);
-            }
-          } catch (e) {
-            console.warn('Seeding initial transactions to Firestore:', e);
-          }
+          // When snapshot is empty, keep it empty!
+          // NEVER automatically write demo transactions back into Firestore.
+          if (isMounted) setTransactions([]);
         }
       },
       (err) => {
         console.warn('Transactions sync info:', err);
-        const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t) => ({
-          ...t,
-          date: `${currentMonth}-${t.date.split('-')[2]}`,
-        }));
-        if (isMounted) setTransactions(adjusted);
+        if (isMounted) setTransactions([]);
       }
     );
 
@@ -337,7 +323,7 @@ function ExpenseTrackerDashboard() {
       isMounted = false;
       unsubscribe();
     };
-  }, [currentMonth]);
+  }, []);
 
   // Filter transactions by selected month, selected building, and selected fiscal year
   const monthTransactions = useMemo(() => {
@@ -571,6 +557,36 @@ function ExpenseTrackerDashboard() {
       console.warn('Delete Firestore transaction:', err);
     }
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleClearAllTransactions = async () => {
+    if (!isAdmin) return;
+    try {
+      const colRef = collection(db, 'transactions');
+      const snap = await getDocs(colRef);
+      for (const d of snap.docs) {
+        await deleteDoc(d.ref).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Clear all transactions error:', err);
+    }
+    setTransactions([]);
+  };
+
+  const handleLoadDemoData = async () => {
+    if (!isAdmin) return;
+    const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t) => ({
+      ...t,
+      date: `${currentMonth}-${t.date.split('-')[2]}`,
+    }));
+    setTransactions(adjusted);
+    try {
+      for (const t of adjusted) {
+        await setDoc(doc(db, 'transactions', t.id), t);
+      }
+    } catch (e) {
+      console.warn('Loading demo data error:', e);
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -927,6 +943,8 @@ function ExpenseTrackerDashboard() {
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteTransaction}
               onAddNew={handleOpenAddModal}
+              onClearAll={handleClearAllTransactions}
+              onLoadDemoData={handleLoadDemoData}
               fiscalYears={fiscalYears}
             />
           </div>
@@ -939,6 +957,8 @@ function ExpenseTrackerDashboard() {
             onEdit={handleOpenEditModal}
             onDelete={handleDeleteTransaction}
             onAddNew={handleOpenAddModal}
+            onClearAll={handleClearAllTransactions}
+            onLoadDemoData={handleLoadDemoData}
             fiscalYears={fiscalYears}
           />
         )}

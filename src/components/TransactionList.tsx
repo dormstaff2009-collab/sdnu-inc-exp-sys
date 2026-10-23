@@ -10,6 +10,7 @@ import {
   Tag,
   Building2,
   Plus,
+  RotateCcw,
 } from 'lucide-react';
 import { Transaction, TransactionType, BUILDINGS, FiscalYearItem, DEFAULT_FISCAL_YEARS } from '../types/finance';
 import { getCategoryMeta } from '../constants/categories';
@@ -21,6 +22,8 @@ interface Props {
   onEdit: (tx: Transaction) => void;
   onDelete: (id: string) => void;
   onAddNew: () => void;
+  onClearAll?: () => void;
+  onLoadDemoData?: () => void;
   fiscalYears?: FiscalYearItem[];
 }
 
@@ -29,6 +32,8 @@ export const TransactionList: React.FC<Props> = ({
   onEdit,
   onDelete,
   onAddNew,
+  onClearAll,
+  onLoadDemoData,
   fiscalYears = [],
 }) => {
   const { isAdmin } = useAuth();
@@ -39,6 +44,8 @@ export const TransactionList: React.FC<Props> = ({
   const [buildingFilter, setBuildingFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc'>('date-desc');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
+  const [isConfirmLoadDemoOpen, setIsConfirmLoadDemoOpen] = useState(false);
 
   const availableFiscalYears = fiscalYears.length > 0
     ? fiscalYears.map((f) => f.year)
@@ -165,6 +172,30 @@ export const TransactionList: React.FC<Props> = ({
             <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
             <span className="hidden sm:inline">ส่งออก CSV</span>
           </button>
+
+          {/* Clear All button for Admin */}
+          {isAdmin && transactions.length > 0 && onClearAll && (
+            <button
+              onClick={() => setIsConfirmClearAllOpen(true)}
+              title="ล้างข้อมูลรายการทั้งหมด เพื่อเริ่มต้นระบบใหม่"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span className="hidden md:inline">ล้างรายการทั้งหมด</span>
+            </button>
+          )}
+
+          {/* Load demo data button when empty */}
+          {isAdmin && transactions.length === 0 && onLoadDemoData && (
+            <button
+              onClick={() => setIsConfirmLoadDemoOpen(true)}
+              title="โหลดข้อมูลตัวอย่างสำหรับทดสอบระบบ"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>โหลดข้อมูลตัวอย่าง</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -270,15 +301,33 @@ export const TransactionList: React.FC<Props> = ({
           <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
             <Filter className="w-6 h-6" />
           </div>
-          <p className="text-sm font-semibold text-slate-700">ไม่พบรายการที่ตรงกับเงื่อนไข</p>
-          <p className="text-xs text-slate-400 mt-1">ลองเปลี่ยนตัวกรองหรือคำค้นหา</p>
+          <p className="text-sm font-semibold text-slate-700">
+            {transactions.length === 0
+              ? 'ยังไม่มีรายการบันทึกรายรับ-รายจ่ายในระบบ'
+              : 'ไม่พบรายการที่ตรงกับเงื่อนไขการค้นหา'}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            {transactions.length === 0
+              ? 'คุณสามารถเริ่มต้นบันทึกข้อมูลจริง หรือเลือกโหลดข้อมูลตัวอย่างเพื่อทดสอบระบบได้'
+              : 'ลองเปลี่ยนตัวกรองหรือคำค้นหา'}
+          </p>
           {isAdmin && (
-            <button
-              onClick={onAddNew}
-              className="mt-4 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
-            >
-              + บันทึกรายการ
-            </button>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                onClick={onAddNew}
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
+              >
+                + บันทึกรายการใหม่
+              </button>
+              {transactions.length === 0 && onLoadDemoData && (
+                <button
+                  onClick={() => setIsConfirmLoadDemoOpen(true)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-2xs"
+                >
+                  โหลดข้อมูลตัวอย่าง
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -387,7 +436,7 @@ export const TransactionList: React.FC<Props> = ({
             <div className="flex gap-2 mt-5">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
               >
                 ยกเลิก
               </button>
@@ -396,9 +445,73 @@ export const TransactionList: React.FC<Props> = ({
                   onDelete(confirmDeleteId);
                   setConfirmDeleteId(null);
                 }}
-                className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold"
+                className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
               >
                 ลบรายการ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Confirmation Dialog */}
+      {isConfirmClearAllOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mb-3">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+            </div>
+            <h4 className="text-base font-bold text-slate-800">ยืนยันล้างข้อมูลรายการทั้งหมด</h4>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              คุณต้องการลบข้อมูลรายรับ-รายจ่ายทั้งหมดในระบบใช่หรือไม่? ระบบจะลบข้อมูลออกจากฐานข้อมูลถาวร และจะไม่ดึงข้อมูลตัวอย่างเดิมกลับมาอีก เพื่อให้คุณสามารถเริ่มบันทึกข้อมูลจริงได้
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setIsConfirmClearAllOpen(false)}
+                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  onClearAll?.();
+                  setIsConfirmClearAllOpen(false);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                ยืนยันล้างทั้งหมด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Demo Data Confirmation Dialog */}
+      {isConfirmLoadDemoOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
+              <RotateCcw className="w-5 h-5 text-indigo-600" />
+            </div>
+            <h4 className="text-base font-bold text-slate-800">โหลดข้อมูลตัวอย่าง</h4>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              ต้องการโหลดชุดข้อมูลตัวอย่าง (11 รายการ) เข้าสู่ระบบเพื่อทดสอบการแสดงผลและแผนภูมิใช่หรือไม่?
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setIsConfirmLoadDemoOpen(false)}
+                className="flex-1 py-2 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  onLoadDemoData?.();
+                  setIsConfirmLoadDemoOpen(false);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                โหลดข้อมูลตัวอย่าง
               </button>
             </div>
           </div>
