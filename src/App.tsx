@@ -206,23 +206,14 @@ function ExpenseTrackerDashboard() {
             list.push({ id: docSnap.id, ...(docSnap.data() as Omit<CategoryItem, 'id'>) });
           });
 
-          // Auto-migrate legacy income categories in Firestore if found
-          const hasLegacy = list.some(
-            (c) =>
-              c.type === 'income' &&
-              (c.name.includes('ค่าเช่าที่พัก') || (c.id === 'inc-3' && c.name === 'ค่าเช่าห้องพักรับรอง') || c.id === 'inc-5')
-          );
-          if (hasLegacy) {
-            (async () => {
-              try {
-                await deleteDoc(doc(db, 'categories', 'inc-5')).catch(() => {});
-                for (const cat of DEFAULT_INCOME_CATEGORIES) {
-                  await setDoc(doc(db, 'categories', cat.id), cat);
-                }
-              } catch (e) {
-                console.warn('Auto-upgraded categories in Firestore:', e);
+          // Ensure the 4 default income categories exist cleanly if missing
+          const incomeInList = list.filter((c) => c.type === 'income');
+          if (incomeInList.length < 4) {
+            for (const cat of DEFAULT_INCOME_CATEGORIES) {
+              if (!list.some((c) => c.name === cat.name && c.type === 'income')) {
+                setDoc(doc(db, 'categories', cat.id), cat).catch(() => {});
               }
-            })();
+            }
           }
 
           if (isMounted) setCategories(list);

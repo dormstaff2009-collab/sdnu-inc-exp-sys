@@ -66,6 +66,7 @@ export const TransactionFormModal: React.FC<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
 
   // Synchronize form whenever modal opens or initialData changes
   useEffect(() => {
@@ -88,6 +89,7 @@ export const TransactionFormModal: React.FC<Props> = ({
         setNote('');
       }
       setValidationError(null);
+      setSaveAndAddAnother(false);
     }
   }, [isOpen, initialData]);
 
@@ -105,8 +107,6 @@ export const TransactionFormModal: React.FC<Props> = ({
     const current = parseFloat(amount) || 0;
     setAmount((current + addVal).toString());
   };
-
-  const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
