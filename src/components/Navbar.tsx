@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   Wallet,
-  ChevronLeft,
-  ChevronRight,
   Plus,
   LogIn,
   LogOut,
@@ -27,45 +25,7 @@ export const Navbar: React.FC<Props> = ({
   onOpenCategoryModal,
   onOpenFiscalYearModal,
 }) => {
-  const { authSession, isAdmin, logout, currentMonth, setCurrentMonth, loading } = useAuth();
-
-  // Month navigation helpers
-  const handlePrevMonth = () => {
-    const [yStr, mStr] = currentMonth.split('-');
-    let year = parseInt(yStr, 10);
-    let month = parseInt(mStr, 10) - 1;
-    if (month < 1) {
-      month = 12;
-      year -= 1;
-    }
-    setCurrentMonth(`${year}-${String(month).padStart(2, '0')}`);
-  };
-
-  const handleNextMonth = () => {
-    const [yStr, mStr] = currentMonth.split('-');
-    let year = parseInt(yStr, 10);
-    let month = parseInt(mStr, 10) + 1;
-    if (month > 12) {
-      month = 1;
-      year += 1;
-    }
-    setCurrentMonth(`${year}-${String(month).padStart(2, '0')}`);
-  };
-
-  const formatMonthThai = (monthKey: string) => {
-    try {
-      const [year, month] = monthKey.split('-');
-      const monthNames = [
-        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-      ];
-      const mIdx = parseInt(month, 10) - 1;
-      const buddhistYear = parseInt(year, 10) + 543;
-      return `${monthNames[mIdx]} ${buddhistYear}`;
-    } catch {
-      return monthKey;
-    }
-  };
+  const { authSession, isAdmin, logout, loading } = useAuth();
 
   return (
     <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
@@ -98,30 +58,6 @@ export const Navbar: React.FC<Props> = ({
                 ระบบจัดการรายรับ-รายจ่าย หอพักและอาคาร SDNU
               </p>
             </div>
-          </div>
-
-          {/* Month Selector in Center */}
-          <div className="flex items-center bg-slate-50 border border-slate-200/80 rounded-2xl px-1.5 py-1">
-            <button
-              onClick={handlePrevMonth}
-              title="เดือนก่อนหน้า"
-              className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            <div className="px-2 sm:px-3 flex items-center gap-1.5 text-xs font-bold text-slate-800">
-              <Calendar className="w-3.5 h-3.5 text-indigo-600 hidden xs:inline" />
-              <span>{formatMonthThai(currentMonth)}</span>
-            </div>
-
-            <button
-              onClick={handleNextMonth}
-              title="เดือนถัดไป"
-              className="p-1 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Actions & User Controls */}

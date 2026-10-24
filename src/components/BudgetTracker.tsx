@@ -86,7 +86,7 @@ export const BudgetTracker: React.FC<Props> = ({ totalExpense }) => {
   const presets = [15000, 20000, 25000, 30000, 40000, 50000];
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full">
       <div>
         {/* Title & Edit Button */}
         <div className="flex items-center justify-between pb-3">

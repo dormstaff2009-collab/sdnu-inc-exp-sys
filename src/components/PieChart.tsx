@@ -9,6 +9,7 @@ interface Props {
   type: TransactionType;
   onTypeChange?: (type: TransactionType) => void;
   title?: string;
+  size?: number;
 }
 
 export const PieChart: React.FC<Props> = ({
@@ -16,9 +17,16 @@ export const PieChart: React.FC<Props> = ({
   totalAmount,
   type,
   onTypeChange,
-  title = 'สัดส่วนตามหมวดหมู่',
+  title,
+  size = 200,
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const displayTitle =
+    title ||
+    (type === 'expense'
+      ? 'แผนภูมิวงกลมแสดงสัดส่วนรายจ่าย'
+      : 'แผนภูมิวงกลมแสดงสัดส่วนรายรับ');
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('th-TH', {
@@ -29,8 +37,7 @@ export const PieChart: React.FC<Props> = ({
   };
 
   // SVG parameters
-  const size = 260;
-  const strokeWidth = 36;
+  const strokeWidth = 28;
   const radius = (size - strokeWidth) / 2;
   const center = size / 2;
   const circumference = 2 * Math.PI * radius;
@@ -54,166 +61,182 @@ export const PieChart: React.FC<Props> = ({
   const activeItem = hoveredIndex !== null ? summaries[hoveredIndex] : null;
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col h-full">
-      {/* Header with Type Selector */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
-        <div>
-          <h3 className="text-base font-bold text-slate-800">{title}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {type === 'expense' ? 'วิเคราะห์การใช้จ่ายแต่ละหมวดหมู่' : 'วิเคราะห์ที่มาของรายรับ'}
-          </p>
+    <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-full">
+      {/* Header with Title and Type Badge/Selector */}
+      <div>
+        <div className="flex items-start sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 leading-tight">{displayTitle}</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {type === 'expense' ? 'วิเคราะห์สัดส่วนการใช้จ่ายแต่ละหมวดหมู่' : 'วิเคราะห์สัดส่วนที่มาของรายรับ'}
+            </p>
+          </div>
+
+          {onTypeChange ? (
+            <div className="flex bg-slate-100 p-0.5 rounded-xl text-xs font-medium shrink-0">
+              <button
+                onClick={() => onTypeChange('expense')}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  type === 'expense'
+                    ? 'bg-rose-500 text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                รายจ่าย
+              </button>
+              <button
+                onClick={() => onTypeChange('income')}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  type === 'income'
+                    ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                รายรับ
+              </button>
+            </div>
+          ) : (
+            <span
+              className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                type === 'income'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+              }`}
+            >
+              {type === 'income' ? 'รายรับ (Income)' : 'รายจ่าย (Expense)'}
+            </span>
+          )}
         </div>
 
-        {onTypeChange && (
-          <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-medium">
-            <button
-              onClick={() => onTypeChange('expense')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                type === 'expense'
-                  ? 'bg-rose-500 text-white shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              รายจ่าย
-            </button>
-            <button
-              onClick={() => onTypeChange('income')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                type === 'income'
-                  ? 'bg-emerald-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              รายรับ
-            </button>
+        {summaries.length === 0 || totalAmount === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+            <div className="w-16 h-16 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center mb-3 text-slate-300 text-xl">
+              {type === 'expense' ? '💸' : '💰'}
+            </div>
+            <p className="text-xs font-bold text-slate-600">
+              ยังไม่มีข้อมูล{type === 'expense' ? 'รายจ่าย' : 'รายรับ'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              ข้อมูลจะแสดงทันทีเมื่อมีการบันทึก{type === 'expense' ? 'รายจ่าย' : 'รายรับ'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4 pt-4">
+            {/* Donut Chart Visual */}
+            <div className="relative flex items-center justify-center shrink-0">
+              <svg
+                width={size}
+                height={size}
+                viewBox={`0 0 ${size} ${size}`}
+                className="transform -rotate-90 filter drop-shadow-xs"
+              >
+                {/* Background Ring */}
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="transparent"
+                  stroke="#f8fafc"
+                  strokeWidth={strokeWidth}
+                />
+
+                {/* Slices */}
+                {slices.map((slice) => {
+                  const isHovered = hoveredIndex === slice.index;
+                  return (
+                    <circle
+                      key={slice.category}
+                      cx={center}
+                      cy={center}
+                      r={radius}
+                      fill="transparent"
+                      stroke={slice.color}
+                      strokeWidth={isHovered ? strokeWidth + 5 : strokeWidth}
+                      strokeDasharray={slice.strokeDasharray}
+                      strokeDashoffset={slice.strokeDashoffset}
+                      strokeLinecap="round"
+                      className="transition-all duration-200 cursor-pointer"
+                      onMouseEnter={() => setHoveredIndex(slice.index)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    />
+                  );
+                })}
+              </svg>
+
+              {/* Inner Center Info */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-3">
+                {activeItem ? (
+                  <>
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full mb-0.5 max-w-[130px] truncate"
+                      style={{ backgroundColor: `${activeItem.color}20`, color: activeItem.color }}
+                    >
+                      {activeItem.category}
+                    </span>
+                    <span className="text-sm font-black text-slate-900 leading-tight">
+                      {formatCurrency(activeItem.total)}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-500 mt-0.5">
+                      {activeItem.percentage.toFixed(1)}%
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[10px] text-slate-400 font-medium leading-none mb-1">
+                      {type === 'expense' ? 'รายจ่ายรวม' : 'รายรับรวม'}
+                    </span>
+                    <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                      {formatCurrency(totalAmount)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      {summaries.length} หมวดหมู่
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Category Legend & Breakdown List */}
+            <div className="w-full max-h-48 overflow-y-auto space-y-1 pr-1 border-t border-slate-100 pt-3">
+              {summaries.map((item, idx) => {
+                const meta = getCategoryMeta(item.category, item.type);
+                const isHovered = hoveredIndex === idx;
+
+                return (
+                  <div
+                    key={item.category}
+                    onMouseEnter={() => setHoveredIndex(idx)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`flex items-center justify-between p-2 rounded-xl text-xs transition-colors cursor-pointer ${
+                      isHovered ? 'bg-slate-50 ring-1 ring-slate-200' : 'hover:bg-slate-50/70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${item.color}18` }}
+                      >
+                        <CategoryIcon iconName={meta.icon} className="w-3 h-3" color={item.color} />
+                      </div>
+                      <div className="min-w-0 truncate">
+                        <p className="font-semibold text-slate-800 truncate text-[11px]">{item.category}</p>
+                        <p className="text-[10px] text-slate-400">{item.count} รายการ</p>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-slate-900 text-[11px]">{formatCurrency(item.total)}</p>
+                      <p className="text-[10px] font-bold" style={{ color: item.color }}>
+                        {item.percentage.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
-
-      {summaries.length === 0 || totalAmount === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400 my-auto">
-          <div className="w-20 h-20 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center mb-3 text-slate-300">
-            📊
-          </div>
-          <p className="text-sm font-medium text-slate-600">ยังไม่มีข้อมูล{type === 'expense' ? 'รายจ่าย' : 'รายรับ'}ในเดือนนี้</p>
-          <p className="text-xs text-slate-400 mt-1">กดปุ่ม "บันทึกรายการ" เพื่อเริ่มต้นบันทึกข้อมูล</p>
-        </div>
-      ) : (
-        <div className="flex flex-col lg:flex-row items-center gap-6 pt-5 my-auto">
-          {/* Donut Chart Visual */}
-          <div className="relative flex items-center justify-center flex-shrink-0">
-            <svg
-              width={size}
-              height={size}
-              viewBox={`0 0 ${size} ${size}`}
-              className="transform -rotate-90 filter drop-shadow-xs"
-            >
-              {/* Background Ring */}
-              <circle
-                cx={center}
-                cy={center}
-                r={radius}
-                fill="transparent"
-                stroke="#f1f5f9"
-                strokeWidth={strokeWidth}
-              />
-
-              {/* Slices */}
-              {slices.map((slice) => {
-                const isHovered = hoveredIndex === slice.index;
-                return (
-                  <circle
-                    key={slice.category}
-                    cx={center}
-                    cy={center}
-                    r={radius}
-                    fill="transparent"
-                    stroke={slice.color}
-                    strokeWidth={isHovered ? strokeWidth + 6 : strokeWidth}
-                    strokeDasharray={slice.strokeDasharray}
-                    strokeDashoffset={slice.strokeDashoffset}
-                    strokeLinecap="round"
-                    className="transition-all duration-200 cursor-pointer"
-                    onMouseEnter={() => setHoveredIndex(slice.index)}
-                    onMouseLeave={() => setHoveredIndex(null)}
-                  />
-                );
-              })}
-            </svg>
-
-            {/* Inner Center Info */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-4">
-              {activeItem ? (
-                <>
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full mb-1 max-w-[120px] truncate"
-                    style={{ backgroundColor: `${activeItem.color}20`, color: activeItem.color }}
-                  >
-                    {activeItem.category}
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 leading-tight">
-                    {formatCurrency(activeItem.total)}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500 mt-0.5">
-                    {activeItem.percentage.toFixed(1)}% ของทั้งหมด
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs text-slate-500 font-medium">
-                    {type === 'expense' ? 'รายจ่ายรวม' : 'รายรับรวม'}
-                  </span>
-                  <span className="text-xl font-extrabold text-slate-900 leading-tight">
-                    {formatCurrency(totalAmount)}
-                  </span>
-                  <span className="text-[11px] text-slate-400 mt-0.5">
-                    {summaries.length} หมวดหมู่
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Category Legend & Breakdown List */}
-          <div className="w-full flex-1 max-h-64 overflow-y-auto pr-1 space-y-2">
-            {summaries.map((item, idx) => {
-              const meta = getCategoryMeta(item.category, item.type);
-              const isHovered = hoveredIndex === idx;
-
-              return (
-                <div
-                  key={item.category}
-                  onMouseEnter={() => setHoveredIndex(idx)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  className={`flex items-center justify-between p-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                    isHovered ? 'bg-slate-50 ring-1 ring-slate-200' : 'hover:bg-slate-50/70'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${item.color}18` }}
-                    >
-                      <CategoryIcon iconName={meta.icon} className="w-3.5 h-3.5" color={item.color} />
-                    </div>
-                    <div className="min-w-0 truncate">
-                      <p className="font-semibold text-slate-800 truncate">{item.category}</p>
-                      <p className="text-[11px] text-slate-400">{item.count} รายการ</p>
-                    </div>
-                  </div>
-
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-slate-800">{formatCurrency(item.total)}</p>
-                    <p className="text-[11px] font-semibold text-slate-500">
-                      {item.percentage.toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

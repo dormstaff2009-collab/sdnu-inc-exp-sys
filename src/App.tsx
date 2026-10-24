@@ -20,7 +20,7 @@ import {
 import { Navbar } from './components/Navbar';
 import { SummaryCards } from './components/SummaryCards';
 import { PieChart } from './components/PieChart';
-import { BudgetTracker } from './components/BudgetTracker';
+import { IncomeExpenseAnalysisChart } from './components/IncomeExpenseAnalysisChart';
 import { TransactionList } from './components/TransactionList';
 import { CategoryBreakdown } from './components/CategoryBreakdown';
 import { TransactionFormModal } from './components/TransactionFormModal';
@@ -162,8 +162,6 @@ function ExpenseTrackerDashboard() {
     authSession,
     role,
     isAdmin,
-    monthlyBudget,
-    currentMonth,
     setRole,
     clearAuthError,
   } = useAuth();
@@ -192,7 +190,7 @@ function ExpenseTrackerDashboard() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories'>('dashboard');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>('all');
-  const [showAllMonths, setShowAllMonths] = useState<boolean>(false);
+  const [chartDisplayView, setChartDisplayView] = useState<'all' | 'comparison' | 'income' | 'expense'>('all');
 
   // 1. Sync Categories with Firestore
   useEffect(() => {
@@ -320,24 +318,19 @@ function ExpenseTrackerDashboard() {
     };
   }, []);
 
-  // Filter transactions for Dashboard (selected month or all months, filtered by building & fiscal year)
+  // Filter transactions for Dashboard (filtered by building & fiscal year)
   const dashboardTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const matchesMonth = showAllMonths || (t.date && t.date.startsWith(currentMonth));
-      const matchesBuilding = selectedBuilding === 'all' || t.building === selectedBuilding;
-      const matchesFiscalYear = selectedFiscalYear === 'all' || t.fiscalYear === selectedFiscalYear;
-      return matchesMonth && matchesBuilding && matchesFiscalYear;
-    });
-  }, [transactions, currentMonth, showAllMonths, selectedBuilding, selectedFiscalYear]);
-
-  // Filter transactions for Transactions Tab (shows all months by default, honoring top building & fiscal year)
-  const tabTransactions = useMemo(() => {
     return transactions.filter((t) => {
       const matchesBuilding = selectedBuilding === 'all' || t.building === selectedBuilding;
       const matchesFiscalYear = selectedFiscalYear === 'all' || t.fiscalYear === selectedFiscalYear;
       return matchesBuilding && matchesFiscalYear;
     });
   }, [transactions, selectedBuilding, selectedFiscalYear]);
+
+  // Filter transactions for Transactions Tab
+  const tabTransactions = useMemo(() => {
+    return dashboardTransactions;
+  }, [dashboardTransactions]);
 
   // Aggregate totals
   const totalIncome = useMemo(() => {
@@ -350,6 +343,14 @@ function ExpenseTrackerDashboard() {
     return dashboardTransactions
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  }, [dashboardTransactions]);
+
+  const incomeCount = useMemo(() => {
+    return dashboardTransactions.filter((t) => t.type === 'income').length;
+  }, [dashboardTransactions]);
+
+  const expenseCount = useMemo(() => {
+    return dashboardTransactions.filter((t) => t.type === 'expense').length;
   }, [dashboardTransactions]);
 
   // Category Summaries for Pie Chart & Breakdown
@@ -381,6 +382,62 @@ function ExpenseTrackerDashboard() {
 
     return result.sort((a, b) => b.total - a.total);
   }, [dashboardTransactions, chartType, totalExpense, totalIncome, categories]);
+
+  // Dedicated Category Summaries for Income Pie Chart
+  const incomeCategorySummaries = useMemo(() => {
+    const targetTransactions = dashboardTransactions.filter((t) => t.type === 'income');
+    const map = new Map<string, { total: number; count: number }>();
+    targetTransactions.forEach((tx) => {
+      const existing = map.get(tx.category) || { total: 0, count: 0 };
+      map.set(tx.category, {
+        total: existing.total + Number(tx.amount || 0),
+        count: existing.count + 1,
+      });
+    });
+
+    const result: CategorySummary[] = [];
+    map.forEach((data, categoryName) => {
+      const meta = getCategoryMeta(categoryName, 'income', categories);
+      result.push({
+        category: categoryName,
+        total: data.total,
+        count: data.count,
+        percentage: totalIncome > 0 ? (data.total / totalIncome) * 100 : 0,
+        color: meta.color,
+        type: 'income',
+      });
+    });
+
+    return result.sort((a, b) => b.total - a.total);
+  }, [dashboardTransactions, totalIncome, categories]);
+
+  // Dedicated Category Summaries for Expense Pie Chart
+  const expenseCategorySummaries = useMemo(() => {
+    const targetTransactions = dashboardTransactions.filter((t) => t.type === 'expense');
+    const map = new Map<string, { total: number; count: number }>();
+    targetTransactions.forEach((tx) => {
+      const existing = map.get(tx.category) || { total: 0, count: 0 };
+      map.set(tx.category, {
+        total: existing.total + Number(tx.amount || 0),
+        count: existing.count + 1,
+      });
+    });
+
+    const result: CategorySummary[] = [];
+    map.forEach((data, categoryName) => {
+      const meta = getCategoryMeta(categoryName, 'expense', categories);
+      result.push({
+        category: categoryName,
+        total: data.total,
+        count: data.count,
+        percentage: totalExpense > 0 ? (data.total / totalExpense) * 100 : 0,
+        color: meta.color,
+        type: 'expense',
+      });
+    });
+
+    return result.sort((a, b) => b.total - a.total);
+  }, [dashboardTransactions, totalExpense, categories]);
 
   // Category CRUD (Admin only)
   const handleAddCategory = async (newCat: Omit<CategoryItem, 'id'>) => {
@@ -632,7 +689,7 @@ function ExpenseTrackerDashboard() {
     const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t, idx) => ({
       ...t,
       id: `sample-${timestamp}-${idx}`,
-      date: `${currentMonth}-${t.date.split('-')[2]}`,
+      date: t.date,
     }));
     setTransactions(adjusted);
     try {
@@ -939,113 +996,184 @@ function ExpenseTrackerDashboard() {
             </div>
           </div>
 
-          {/* Additional Filter Helpers: Month Scope Toggle & Reset All */}
-          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-medium">ช่วงเวลาแดชบอร์ด:</span>
-              <button
-                type="button"
-                onClick={() => setShowAllMonths(false)}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                  !showAllMonths
-                    ? 'bg-indigo-100 text-indigo-800'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                เฉพาะเดือนที่เลือก ({currentMonth})
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAllMonths(true)}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                  showAllMonths
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                ดูทุกเดือน (ภาพรวมทั้งปี/ทั้งหมด)
-              </button>
-            </div>
-
-            {(selectedFiscalYear !== 'all' || selectedBuilding !== 'all' || showAllMonths) && (
+          {/* Filter Status & Reset */}
+          {(selectedFiscalYear !== 'all' || selectedBuilding !== 'all') && (
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs flex-wrap gap-2">
+              <span className="text-slate-500 font-medium">
+                กำลังแสดงข้อมูล: {selectedFiscalYear !== 'all' ? selectedFiscalYear : 'ทุกปีงปม.'} {selectedBuilding !== 'all' ? `• ${selectedBuilding}` : '• ทุกอาคาร'}
+              </span>
               <button
                 type="button"
                 onClick={() => {
                   setSelectedFiscalYear('all');
                   setSelectedBuilding('all');
-                  setShowAllMonths(false);
                 }}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
               >
-                รีเซ็ตตัวกรองทั้งหมด (แสดงข้อมูลครบทั้ง {transactions.length} รายการ)
+                รีเซ็ตตัวกรองทั้งหมด (แสดงครบทั้ง {transactions.length} รายการ)
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* 1. Summary Cards */}
         <SummaryCards
           totalIncome={totalIncome}
           totalExpense={totalExpense}
-          monthlyBudget={monthlyBudget}
+          totalTransactions={dashboardTransactions.length}
+          incomeCount={incomeCount}
+          expenseCount={expenseCount}
         />
 
         {/* 2. Dashboard View */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Pie Chart Widget */}
-              <div className="lg:col-span-7">
-                <PieChart
-                  summaries={categorySummaries}
-                  totalAmount={chartType === 'expense' ? totalExpense : totalIncome}
-                  type={chartType}
-                  onTypeChange={setChartType}
-                  title="แผนภูมิวงกลมแสดงสัดส่วน"
-                />
-              </div>
-
-              {/* Monthly Budget Tracker */}
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                <BudgetTracker totalExpense={totalExpense} />
-
-                {/* System Roles & Project Info */}
-                <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            {/* 3-Chart Analytics Shelf / Row */}
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-700 text-white flex items-center justify-center shrink-0 shadow-xs shadow-indigo-200">
+                    <PieIcon className="w-4 h-4" />
+                  </div>
                   <div>
-                    <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold mb-2">
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Firebase Project: sdnu-inc-exp-sys</span>
-                    </div>
-                    <h4 className="text-sm font-bold text-white mb-1">
-                      ระบบผู้ใช้งานและสิทธิ์ (User Roles)
-                    </h4>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      • <strong>ผู้ดูแลระบบ (Admin)</strong>: User <code>adminsdnu</code> / password <code>nustaff2009</code> เข้าถึงและจัดการได้ทุกฟังก์ชัน<br />
-                      • <strong>ผู้ใช้งานทั่วไป (Gmail)</strong>: เข้าสู่ระบบด้วย Gmail เพื่อดูแดชบอร์ดและแผนภูมิวงกลม (อ่านอย่างเดียว)
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-tight">
+                      แถบการวิเคราะห์และแผนภูมิ (3 มุมมองในแถบเดียวกัน)
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      1. กราฟวิเคราะห์รายรับและรายจ่าย &nbsp;•&nbsp; 2. แผนภูมิวงกลมสัดส่วนรายรับ &nbsp;•&nbsp; 3. แผนภูมิวงกลมสัดส่วนรายจ่าย
                     </p>
                   </div>
+                </div>
 
-                  <div className="mt-4 pt-4 border-t border-slate-700/80 flex items-center justify-between text-xs text-slate-300">
-                    <span>สถานะสิทธิ์ปัจจุบัน:</span>
-                    <span
-                      className={`font-bold flex items-center gap-1 ${
-                        isAdmin ? 'text-purple-400' : 'text-blue-400'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                      {isAdmin ? 'Admin (สิทธิ์สูงสุด)' : role === 'viewer' ? 'ผู้ใช้งานทั่วไป (Gmail)' : 'ยังไม่ได้เข้าสู่ระบบ'}
-                    </span>
-                  </div>
+                {/* View switcher tabs */}
+                <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold self-stretch sm:self-auto overflow-x-auto">
+                  <button
+                    onClick={() => setChartDisplayView('all')}
+                    className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                      chartDisplayView === 'all'
+                        ? 'bg-white text-indigo-700 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    แสดงทั้ง 3 ข้อมูลในแถบเดียวกัน
+                  </button>
+                  <button
+                    onClick={() => setChartDisplayView('comparison')}
+                    className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                      chartDisplayView === 'comparison'
+                        ? 'bg-white text-indigo-700 shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    1. วิเคราะห์รับ-จ่าย
+                  </button>
+                  <button
+                    onClick={() => setChartDisplayView('income')}
+                    className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                      chartDisplayView === 'income'
+                        ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    2. วงกลมรายรับ
+                  </button>
+                  <button
+                    onClick={() => setChartDisplayView('expense')}
+                    className={`px-2.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                      chartDisplayView === 'expense'
+                        ? 'bg-rose-500 text-white shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    3. วงกลมรายจ่าย
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* In-depth Category Breakdown */}
-            <CategoryBreakdown
-              summaries={categorySummaries}
-              totalAmount={chartType === 'expense' ? totalExpense : totalIncome}
-              type={chartType}
-            />
+              {/* 3 Visualizations rendered in the same shelf / row */}
+              {chartDisplayView === 'all' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+                  {/* 1. กราฟวิเคราะห์แสดงรายรับและรายจ่าย */}
+                  <div className="h-full">
+                    <IncomeExpenseAnalysisChart
+                      totalIncome={totalIncome}
+                      totalExpense={totalExpense}
+                      transactions={dashboardTransactions}
+                      title="1. กราฟวิเคราะห์แสดงรายรับและรายจ่าย"
+                    />
+                  </div>
+
+                  {/* 2. แผนภูมิวงกลมแสดงสัดส่วนรายรับ */}
+                  <div className="h-full">
+                    <PieChart
+                      summaries={incomeCategorySummaries}
+                      totalAmount={totalIncome}
+                      type="income"
+                      title="2. แผนภูมิวงกลมแสดงสัดส่วนรายรับ"
+                      size={180}
+                    />
+                  </div>
+
+                  {/* 3. แผนภูมิวงกลมแสดงสัดส่วนรายจ่าย */}
+                  <div className="h-full">
+                    <PieChart
+                      summaries={expenseCategorySummaries}
+                      totalAmount={totalExpense}
+                      type="expense"
+                      title="3. แผนภูมิวงกลมแสดงสัดส่วนรายจ่าย"
+                      size={180}
+                    />
+                  </div>
+                </div>
+              ) : chartDisplayView === 'comparison' ? (
+                <div className="grid grid-cols-1 gap-6">
+                  <IncomeExpenseAnalysisChart
+                    totalIncome={totalIncome}
+                    totalExpense={totalExpense}
+                    transactions={dashboardTransactions}
+                    title="1. กราฟวิเคราะห์แสดงรายรับและรายจ่าย"
+                  />
+                </div>
+              ) : chartDisplayView === 'income' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-6">
+                    <PieChart
+                      summaries={incomeCategorySummaries}
+                      totalAmount={totalIncome}
+                      type="income"
+                      title="2. แผนภูมิวงกลมแสดงสัดส่วนรายรับ"
+                      size={220}
+                    />
+                  </div>
+                  <div className="lg:col-span-6">
+                    <CategoryBreakdown
+                      summaries={incomeCategorySummaries}
+                      totalAmount={totalIncome}
+                      type="income"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-6">
+                    <PieChart
+                      summaries={expenseCategorySummaries}
+                      totalAmount={totalExpense}
+                      type="expense"
+                      title="3. แผนภูมิวงกลมแสดงสัดส่วนรายจ่าย"
+                      size={220}
+                    />
+                  </div>
+                  <div className="lg:col-span-6">
+                    <CategoryBreakdown
+                      summaries={expenseCategorySummaries}
+                      totalAmount={totalExpense}
+                      type="expense"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Transaction List */}
             <TransactionList

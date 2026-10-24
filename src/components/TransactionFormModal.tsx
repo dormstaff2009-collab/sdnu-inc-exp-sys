@@ -169,7 +169,7 @@ export const TransactionFormModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150 relative">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -314,10 +314,15 @@ export const TransactionFormModal: React.FC<Props> = ({
 
           {/* 5. หมวดหมู่ */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              5. หมวดหมู่ ({type === 'expense' ? 'รายจ่าย' : 'รายรับ'}) *
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto p-1 border border-slate-100 rounded-2xl">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                5. หมวดหมู่ ({type === 'expense' ? 'รายจ่าย' : 'รายรับ'}) *
+              </label>
+              <span className="text-[11px] text-slate-400">
+                เลือกหมวดหมู่ที่ต้องการบันทึก (แสดงชื่อเต็มทั้งหมด)
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1.5 border border-slate-200/80 rounded-2xl bg-slate-50/50">
               {currentCategoryList.map((cat) => {
                 const isSelected = category === cat.name;
                 return (
@@ -325,20 +330,22 @@ export const TransactionFormModal: React.FC<Props> = ({
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.name)}
-                    className={`flex items-center gap-2 p-2 rounded-xl border text-left text-xs transition-all ${
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/70 text-indigo-900 font-bold shadow-xs'
-                        : 'border-slate-100 hover:border-slate-200 bg-white text-slate-700'
+                        ? 'border-indigo-600 bg-indigo-50/90 text-indigo-950 font-bold shadow-xs ring-1 ring-indigo-500/20'
+                        : 'border-slate-200/80 hover:border-indigo-300 hover:bg-white bg-white text-slate-800'
                     }`}
                   >
                     <div
-                      className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{ backgroundColor: `${cat.color}20` }}
                     >
                       <CategoryIcon iconName={cat.icon} className="w-3.5 h-3.5" color={cat.color} />
                     </div>
-                    <span className="truncate flex-1">{cat.name}</span>
-                    {isSelected && <Check className="w-3 h-3 text-indigo-600 flex-shrink-0" />}
+                    <span className="flex-1 whitespace-normal break-words leading-relaxed text-[12px]">
+                      {cat.name}
+                    </span>
+                    {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />}
                   </button>
                 );
               })}

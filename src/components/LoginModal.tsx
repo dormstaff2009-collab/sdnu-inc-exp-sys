@@ -10,8 +10,8 @@ interface Props {
 export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { signInAdmin, signInWithGoogle, authError, clearAuthError } = useAuth();
   const [activeTab, setActiveTab] = useState<'admin' | 'gmail'>('admin');
-  const [username, setUsername] = useState('adminsdnu');
-  const [password, setPassword] = useState('nustaff2009');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -64,9 +64,9 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-200">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">เข้าสู่ระบบ (User Roles)</h2>
+          <h2 className="text-lg font-bold text-slate-900">เข้าสู่ระบบ</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            เลือกระดับสิทธิ์การเข้าใช้งานระบบ SDNU Expense
+            เข้าสู่ระบบเพื่อใช้งานระบบ SDNU Expense
           </p>
         </div>
 
@@ -109,9 +109,9 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 text-xs text-indigo-900 leading-relaxed">
               <p className="font-bold flex items-center gap-1 text-indigo-700 mb-0.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                สิทธิ์ผู้ดูแลระบบ (Admin เจ้าของระบบ):
+                สิทธิ์ผู้ดูแลระบบ (Admin):
               </p>
-              เข้าถึงทุกฟังก์ชัน บันทึก/แก้ไข/ลบรายการ, ตั้งงบประมาณ, จัดการปีงบประมาณ และหมวดหมู่ (เข้าสู่ระบบด้วยรหัสผ่านแอดมิน หรือใช้อีเมล dormstaff2009@gmail.com)
+              เฉพาะผู้ดูแลระบบที่มีชื่อผู้ใช้และรหัสผ่านเท่านั้น จึงจะมีสิทธิ์เข้าถึงฟังก์ชันจัดการข้อมูล
             </div>
 
             <div>
@@ -123,7 +123,7 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="adminsdnu"
+                placeholder="กรอกชื่อผู้ใช้งาน"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               />
             </div>
@@ -137,7 +137,7 @@ export const LoginModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="nustaff2009"
+                placeholder="กรอกรหัสผ่าน"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               />
             </div>

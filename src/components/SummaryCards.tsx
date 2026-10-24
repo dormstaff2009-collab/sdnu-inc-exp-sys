@@ -1,16 +1,22 @@
 import React from 'react';
-import { Wallet, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Receipt } from 'lucide-react';
 
 interface Props {
   totalIncome: number;
   totalExpense: number;
-  monthlyBudget: number;
+  totalTransactions?: number;
+  incomeCount?: number;
+  expenseCount?: number;
 }
 
-export const SummaryCards: React.FC<Props> = ({ totalIncome, totalExpense, monthlyBudget }) => {
+export const SummaryCards: React.FC<Props> = ({
+  totalIncome,
+  totalExpense,
+  totalTransactions = 0,
+  incomeCount = 0,
+  expenseCount = 0,
+}) => {
   const netBalance = totalIncome - totalExpense;
-  const remainingBudget = monthlyBudget > 0 ? monthlyBudget - totalExpense : 0;
-  const savingsRate = totalIncome > 0 ? Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100) : 0;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('th-TH', {
@@ -34,7 +40,7 @@ export const SummaryCards: React.FC<Props> = ({ totalIncome, totalExpense, month
         <div className="mt-4">
           <p className="text-2xl font-black tracking-tight">{formatCurrency(netBalance)}</p>
           <p className="text-[11px] text-indigo-200 mt-1 flex items-center gap-1">
-            {netBalance >= 0 ? '✓ รายรับมากกว่ารายจ่าย' : '⚠️ รายจ่ายเกินรายรับในเดือนนี้'}
+            {netBalance >= 0 ? '✓ รายรับมากกว่ารายจ่าย' : '⚠️ รายจ่ายมากกว่ารายรับ'}
           </p>
         </div>
       </div>
@@ -51,7 +57,7 @@ export const SummaryCards: React.FC<Props> = ({ totalIncome, totalExpense, month
           <p className="text-2xl font-black text-emerald-600 tracking-tight">
             +{formatCurrency(totalIncome)}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">เงินเข้าทั้งหมดในเดือน</p>
+          <p className="text-[11px] text-slate-400 mt-1">เงินเข้ารวมทั้งหมด</p>
         </div>
       </div>
 
@@ -67,30 +73,24 @@ export const SummaryCards: React.FC<Props> = ({ totalIncome, totalExpense, month
           <p className="text-2xl font-black text-rose-600 tracking-tight">
             -{formatCurrency(totalExpense)}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">เงินออกทั้งหมดในเดือน</p>
+          <p className="text-[11px] text-slate-400 mt-1">เงินออกรวมทั้งหมด</p>
         </div>
       </div>
 
-      {/* Budget & Savings Status Card */}
+      {/* Total Transactions Card */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500">
-            {monthlyBudget > 0 ? 'งบประมาณคงเหลือ' : 'อัตราการออม'}
-          </span>
-          <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
-            <PiggyBank className="w-4 h-4 text-amber-600" />
+          <span className="text-xs font-semibold text-slate-500">จำนวนรายการที่เลือก</span>
+          <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+            <Receipt className="w-4 h-4 text-indigo-600" />
           </div>
         </div>
         <div className="mt-4">
-          <p className={`text-2xl font-black tracking-tight ${remainingBudget < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-            {monthlyBudget > 0 ? formatCurrency(remainingBudget) : `${savingsRate.toFixed(1)}%`}
+          <p className="text-2xl font-black text-slate-800 tracking-tight">
+            {totalTransactions.toLocaleString()} <span className="text-base font-bold text-slate-500">รายการ</span>
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
-            {monthlyBudget > 0
-              ? remainingBudget < 0
-                ? 'เกินเพดานงบที่ตั้งไว้'
-                : 'คงเหลือใช้ได้ในเดือนนี้'
-              : 'จากสัดส่วนรายรับทั้งหมด'}
+            รายรับ {incomeCount} / รายจ่าย {expenseCount} รายการ
           </p>
         </div>
       </div>
