@@ -40,6 +40,7 @@ import {
   Info,
   Building2,
   Calendar,
+  Eye,
 } from 'lucide-react';
 
 // Initial sample transactions using the user's specific institutional categories & buildings
@@ -513,6 +514,10 @@ function ExpenseTrackerDashboard() {
 
   // Transaction CRUD
   const handleSaveTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
+    if (!isAdmin) {
+      throw new Error('เฉพาะผู้ดูแลระบบ (Admin: dormstaff2009@gmail.com) เท่านั้นที่มีสิทธิ์บันทึกหรือแก้ไขข้อมูล');
+    }
+
     // Sanitize data to guarantee valid values for Firestore
     const cleanData = {
       fiscalYear: data.fiscalYear || 'ปี งปม.2569',
@@ -554,6 +559,10 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleBatchSaveTransactions = async (items: Array<Omit<Transaction, 'id' | 'createdAt'>>) => {
+    if (!isAdmin) {
+      throw new Error('เฉพาะผู้ดูแลระบบ (Admin: dormstaff2009@gmail.com) เท่านั้นที่มีสิทธิ์บันทึกข้อมูล');
+    }
+
     try {
       const colRef = collection(db, 'transactions');
       const now = new Date().toISOString();
@@ -583,6 +592,11 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
+    if (!isAdmin) {
+      console.warn('Unauthorized delete attempt blocked.');
+      return;
+    }
+
     try {
       const docRef = doc(db, 'transactions', id);
       await deleteDoc(docRef);
@@ -593,6 +607,11 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleClearAllTransactions = async () => {
+    if (!isAdmin) {
+      console.warn('Unauthorized clear all attempt blocked.');
+      return;
+    }
+
     try {
       const colRef = collection(db, 'transactions');
       const snap = await getDocs(colRef);
@@ -604,6 +623,11 @@ function ExpenseTrackerDashboard() {
   };
 
   const handleLoadDemoData = async () => {
+    if (!isAdmin) {
+      console.warn('Unauthorized load demo attempt blocked.');
+      return;
+    }
+
     const timestamp = Date.now();
     const adjusted = INITIAL_DEMO_TRANSACTIONS.map((t, idx) => ({
       ...t,
@@ -622,7 +646,8 @@ function ExpenseTrackerDashboard() {
 
   const handleOpenAddModal = () => {
     if (!isAdmin) {
-      setRole('admin');
+      setIsLoginModalOpen(true);
+      return;
     }
     const defaultFy = selectedFiscalYear !== 'all' 
       ? selectedFiscalYear 
@@ -643,7 +668,8 @@ function ExpenseTrackerDashboard() {
 
   const handleOpenEditModal = (tx: Transaction) => {
     if (!isAdmin) {
-      setRole('admin');
+      setIsLoginModalOpen(true);
+      return;
     }
     setEditingTransaction(tx);
     setIsFormModalOpen(true);
@@ -662,26 +688,26 @@ function ExpenseTrackerDashboard() {
       {/* Role Banner */}
       {isAdmin ? (
         <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white px-4 py-2.5 shadow-sm">
-          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-purple-700/80 text-purple-200">
+              <span className="p-1 rounded-lg bg-purple-700/80 text-purple-200 shrink-0">
                 <ShieldCheck className="w-4 h-4" />
               </span>
               <span>
-                <strong>โหมดผู้ดูแลระบบ (Admin):</strong> คุณมีสิทธิ์เต็มในการบันทึก แก้ไข ลบรายการ ตั้งงบประมาณ จัดการปีงปม. และจัดการหมวดหมู่รายรับ-รายจ่าย
+                <strong>โหมดผู้ดูแลระบบ (Admin - {authSession?.email || authSession?.username || 'dormstaff2009@gmail.com'}):</strong> สิทธิ์เต็มในการบันทึก แก้ไข ลบรายการ ตั้งงบประมาณ จัดการปีงบประมาณ และหมวดหมู่
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setIsFiscalYearModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 font-semibold transition-colors cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5" />
                 จัดการปีงปม. ({fiscalYears.length})
               </button>
               <button
                 onClick={() => setIsCategoryModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-600/80 hover:bg-purple-600 font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-600/80 hover:bg-purple-600 font-semibold transition-colors cursor-pointer"
               >
                 <FolderCog className="w-3.5 h-3.5" />
                 จัดการหมวดหมู่ ({categories.length})
@@ -689,22 +715,26 @@ function ExpenseTrackerDashboard() {
             </div>
           </div>
         </div>
-      ) : role === 'viewer' ? (
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white px-4 py-2.5 shadow-sm">
-          <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+      ) : authSession ? (
+        <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white px-4 py-2.5 shadow-sm border-b border-blue-900/40">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-blue-700/80 text-blue-200">
-                <UserCheck className="w-4 h-4" />
+              <span className="p-1 rounded-lg bg-blue-700/80 text-blue-200 shrink-0">
+                <Eye className="w-4 h-4" />
               </span>
-              <span>
-                <strong>สิทธิ์ผู้ใช้งานทั่วไป (Gmail):</strong> ดูข้อมูลสรุปแดชบอร์ด แผนภูมิวงกลม และรายงานสัดส่วนรายรับ-รายจ่าย (อ่านอย่างเดียว)
-              </span>
+              <div>
+                <span className="font-bold text-blue-300">สิทธิ์ผู้ใช้งานทั่วไป (Viewer - Read-only):</span>{' '}
+                <span className="text-slate-200">
+                  บัญชี <strong>{authSession.email || authSession.displayName || 'Gmail'}</strong> ดูได้เฉพาะข้อมูลแดชบอร์ด แผนภูมิวงกลม สัดส่วนค่าใช้จ่าย และตารางสรุปผล (ระบบซ่อนปุ่มเพิ่ม/แก้ไข/ลบ)
+                </span>
+              </div>
             </div>
             <button
-              onClick={() => setRole('admin')}
-              className="text-indigo-200 hover:text-white underline text-xs font-semibold cursor-pointer"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shrink-0 cursor-pointer"
             >
-              สลับเป็นสิทธิ์ Admin (เปิดฟังก์ชัน เพิ่ม/ลบ/แก้ไข)
+              <LogIn className="w-3.5 h-3.5" />
+              <span>เข้าสู่ระบบ Admin เพื่อจัดการข้อมูล</span>
             </button>
           </div>
         </div>
@@ -712,19 +742,19 @@ function ExpenseTrackerDashboard() {
         <div className="bg-slate-900 text-white px-4 py-2.5 shadow-sm">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-indigo-700 text-indigo-200">
+              <span className="p-1 rounded-lg bg-indigo-700 text-indigo-200 shrink-0">
                 <Info className="w-4 h-4" />
               </span>
               <span>
-                <strong>ระบบจัดการรายรับรายจ่าย SDNU:</strong> โครงการ Firebase <code>sdnu-inc-exp-sys</code> เลือกระดับสิทธิ์เพื่อเริ่มต้นใช้งาน
+                <strong>ระบบจัดการรายรับรายจ่าย SDNU:</strong> โหมดผู้เยี่ยมชม (Guest - Read-only) ดูภาพรวมแดชบอร์ดและรายงานสรุป
               </span>
             </div>
             <button
               onClick={() => setIsLoginModalOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5" />
-              เข้าสู่ระบบ (Admin / Gmail)
+              <span>เข้าสู่ระบบ (Admin / Gmail)</span>
             </button>
           </div>
         </div>
@@ -793,19 +823,25 @@ function ExpenseTrackerDashboard() {
             {isAdmin ? (
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm shadow-indigo-200 transition-all active:scale-95"
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-sm shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>เพิ่มรายการใหม่</span>
               </button>
             ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center gap-1.5 bg-slate-200/70 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-2xl transition-all"
-              >
-                <LogIn className="w-4 h-4 text-slate-500" />
-                <span>เข้าสู่ระบบ Admin เพื่อเพิ่มรายการ</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 font-semibold text-xs px-3 py-2 rounded-xl border border-slate-200">
+                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                  <span>โหมดดูข้อมูลเท่านั้น (Read-only)</span>
+                </span>
+                <button
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs px-3 py-2 rounded-xl border border-indigo-200 transition-all cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>เข้าสู่ระบบ Admin</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

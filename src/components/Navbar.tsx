@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   UserCheck,
   FolderCog,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -82,14 +83,14 @@ export const Navbar: React.FC<Props> = ({
                 </h1>
                 {authSession && (
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                       isAdmin
                         ? 'bg-purple-100 text-purple-800'
                         : 'bg-blue-100 text-blue-800'
                     }`}
                   >
-                    {isAdmin ? <ShieldCheck className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
-                    {isAdmin ? 'Admin (สิทธิ์เต็ม)' : 'ทั่วไป (Gmail)'}
+                    {isAdmin ? <ShieldCheck className="w-3 h-3" /> : <Eye className="w-3 h-3 text-blue-600" />}
+                    {isAdmin ? 'Admin (สิทธิ์เต็ม)' : 'Viewer (Read-only)'}
                   </span>
                 )}
               </div>
@@ -186,19 +187,19 @@ export const Navbar: React.FC<Props> = ({
                       {authSession.displayName || authSession.username || 'ผู้ใช้'}
                     </span>
                     <span className="text-[10px] text-slate-400 block leading-none">
-                      {isAdmin ? 'Admin' : 'Viewer (Gmail)'}
+                      {isAdmin ? 'Admin' : 'Viewer (Read-only)'}
                     </span>
                   </div>
                 </button>
 
                 {/* Dropdown Menu */}
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 hidden group-hover:block hover:block z-50">
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 hidden group-hover:block hover:block z-50">
                   <div className="px-4 py-2 border-b border-slate-50">
                     <p className="text-xs font-bold text-slate-800 truncate">
                       {authSession.displayName || authSession.username}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate">
-                      {isAdmin ? 'ผู้ดูแลระบบสูงสุด (Admin SDNU)' : authSession.email || 'ผู้ใช้งานทั่วไป'}
+                      {isAdmin ? 'ผู้ดูแลระบบ (Admin dormstaff2009)' : (authSession.email ? `${authSession.email} (Viewer - Read-only)` : 'ผู้ใช้งานทั่วไป (Viewer - Read-only)')}
                     </p>
                   </div>
                   {isAdmin && (

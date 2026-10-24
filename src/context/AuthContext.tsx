@@ -31,6 +31,20 @@ export function getDefaultMonth(): string {
   return `${year}-${month}`;
 }
 
+export const ADMIN_EMAILS = [
+  'dormstaff2009@gmail.com',
+];
+
+export function isUserAdmin(email?: string | null, username?: string | null): boolean {
+  if (username && username.trim().toLowerCase() === 'adminsdnu') {
+    return true;
+  }
+  if (email && ADMIN_EMAILS.includes(email.trim().toLowerCase())) {
+    return true;
+  }
+  return false;
+}
+
 const ADMIN_CREDENTIALS = {
   username: 'adminsdnu',
   password: 'nustaff2009',
@@ -38,24 +52,26 @@ const ADMIN_CREDENTIALS = {
 
 const SESSION_STORAGE_KEY = 'sdnu_auth_session';
 
-const DEFAULT_ADMIN_SESSION: AuthSession = {
-  role: 'admin',
-  username: 'adminsdnu',
-  displayName: 'ผู้ดูแลระบบ (Admin) - sdnu-inc-exp-sys',
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
     const saved = localStorage.getItem(SESSION_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved) as AuthSession;
+        const parsed = JSON.parse(saved) as AuthSession;
+        const validAdmin = isUserAdmin(parsed.email, parsed.username);
+        return {
+          ...parsed,
+          role: validAdmin ? 'admin' : 'viewer',
+          displayName: validAdmin
+            ? (parsed.displayName || 'ผู้ดูแลระบบ (Admin)')
+            : (parsed.email || parsed.displayName || 'ผู้ใช้งานทั่วไป (Viewer)'),
+        };
       } catch (e) {
         localStorage.removeItem(SESSION_STORAGE_KEY);
       }
     }
-    return DEFAULT_ADMIN_SESSION;
+    return null; // Default to unauthenticated / Viewer
   });
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState<string>(getDefaultMonth());
@@ -64,30 +80,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Restore session from localStorage or onAuthStateChanged
   useEffect(() => {
-    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as AuthSession;
-        setAuthSession(parsed);
-      } catch (e) {
-        setAuthSession(DEFAULT_ADMIN_SESSION);
-      }
-    } else {
-      setAuthSession(DEFAULT_ADMIN_SESSION);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Logged in with Google account (dormstaff2009@gmail.com, etc.)
+        // Authenticated with Google
+        const email = (currentUser.email || '').toLowerCase().trim();
+        const isAdminUser = isUserAdmin(email);
         const session: AuthSession = {
-          role: 'admin', // Full access to add, edit, delete
+          role: isAdminUser ? 'admin' : 'viewer',
           email: currentUser.email || '',
-          displayName: currentUser.displayName || (currentUser.email === 'dormstaff2009@gmail.com' ? 'ผู้ดูแลระบบ (Admin)' : currentUser.email || 'ผู้ใช้งานระบบ'),
+          displayName: isAdminUser
+            ? (currentUser.displayName || 'ผู้ดูแลระบบ (Admin) - ' + (currentUser.email || ''))
+            : (currentUser.displayName || currentUser.email || 'ผู้ใช้งานทั่วไป (Viewer)'),
           photoURL: currentUser.photoURL || '',
         };
         setAuthSession(session);
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      } else {
+        // Not authenticated with Firebase: check for manual admin password session
+        const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved) as AuthSession;
+            if (parsed.username === 'adminsdnu' && parsed.role === 'admin') {
+              setAuthSession(parsed);
+            } else {
+              setAuthSession(null);
+              localStorage.removeItem(SESSION_STORAGE_KEY);
+            }
+          } catch {
+            setAuthSession(null);
+            localStorage.removeItem(SESSION_STORAGE_KEY);
+          }
+        } else {
+          setAuthSession(null);
+        }
       }
       setLoading(false);
     });
@@ -171,22 +198,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isAdmin = Boolean(authSession && authSession.role === 'admin' && isUserAdmin(authSession.email, authSession.username));
+  const role: UserRole = isAdmin ? 'admin' : 'viewer';
+
   const setRole = (newRole: UserRole) => {
+    if (newRole === 'admin' && !isUserAdmin(authSession?.email, authSession?.username)) {
+      console.warn('Unauthorized attempt to elevate to admin role');
+      return;
+    }
     setAuthSession((prev) => {
+      if (!prev) return null;
       const updated: AuthSession = {
+        ...prev,
         role: newRole,
-        username: prev?.username || (newRole === 'admin' ? 'adminsdnu' : undefined),
-        displayName: newRole === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ใช้งานทั่วไป (Gmail)',
-        email: prev?.email,
-        photoURL: prev?.photoURL,
       };
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
   };
-
-  const isAdmin = authSession?.role === 'admin';
-  const role = authSession?.role || null;
 
   return (
     <AuthContext.Provider

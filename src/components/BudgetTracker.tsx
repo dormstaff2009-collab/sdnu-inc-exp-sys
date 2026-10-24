@@ -118,13 +118,19 @@ export const BudgetTracker: React.FC<Props> = ({ totalExpense }) => {
         {budget === 0 ? (
           <div className="py-6 text-center">
             <p className="text-xs text-slate-500 mb-3">ยังไม่ได้กำหนดงบประมาณสำหรับเดือนนี้</p>
-            <button
-              onClick={handleOpenModal}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-all shadow-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              กำหนดงบประมาณตอนนี้
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={handleOpenModal}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-all shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                กำหนดงบประมาณตอนนี้
+              </button>
+            ) : (
+              <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                (รอผู้ดูแลระบบกำหนดวงเงินงบประมาณ)
+              </span>
+            )}
           </div>
         ) : (
           <div className="mt-2 space-y-3">
