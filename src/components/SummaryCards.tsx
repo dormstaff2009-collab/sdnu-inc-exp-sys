@@ -1,6 +1,8 @@
 import React from 'react';
 import { Wallet, TrendingUp, TrendingDown, Receipt } from 'lucide-react';
 
+import { formatCurrency } from '../utils/format';
+
 interface Props {
   totalIncome: number;
   totalExpense: number;
@@ -17,14 +19,6 @@ export const SummaryCards: React.FC<Props> = ({
   expenseCount = 0,
 }) => {
   const netBalance = totalIncome - totalExpense;
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

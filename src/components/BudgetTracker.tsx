@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Target, AlertCircle, CheckCircle2, TrendingDown, Edit3, X, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../utils/format';
 
 interface Props {
   totalExpense: number;
@@ -12,14 +13,6 @@ export const BudgetTracker: React.FC<Props> = ({ totalExpense }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inputValue, setInputValue] = useState(monthlyBudget.toString());
   const [saving, setSaving] = useState(false);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   const budget = monthlyBudget || 0;
   const remaining = budget - totalExpense;

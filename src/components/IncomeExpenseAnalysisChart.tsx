@@ -11,6 +11,7 @@ import {
   ArrowDownRight,
 } from 'lucide-react';
 import { Transaction } from '../types/finance';
+import { formatCurrency } from '../utils/format';
 
 interface Props {
   totalIncome: number;
@@ -34,14 +35,6 @@ export const IncomeExpenseAnalysisChart: React.FC<Props> = ({
   const incomePctOfFlow = totalFlow > 0 ? (totalIncome / totalFlow) * 100 : 50;
   const expensePctOfFlow = totalFlow > 0 ? (totalExpense / totalFlow) * 100 : 50;
   const expenseToIncomeRatio = totalIncome > 0 ? (totalExpense / totalIncome) * 100 : 0;
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   // Group transactions by building for comparison
   const buildingMap = new Map<string, { income: number; expense: number }>();

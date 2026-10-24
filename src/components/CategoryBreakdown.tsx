@@ -2,6 +2,7 @@ import React from 'react';
 import { CategorySummary, TransactionType } from '../types/finance';
 import { getCategoryMeta } from '../constants/categories';
 import { CategoryIcon } from './CategoryIcon';
+import { formatCurrency } from '../utils/format';
 
 interface Props {
   summaries: CategorySummary[];
@@ -10,13 +11,6 @@ interface Props {
 }
 
 export const CategoryBreakdown: React.FC<Props> = ({ summaries, totalAmount, type }) => {
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   if (summaries.length === 0) return null;
 

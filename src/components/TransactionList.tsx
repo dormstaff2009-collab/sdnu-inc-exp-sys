@@ -17,6 +17,7 @@ import { Transaction, TransactionType, BUILDINGS, FiscalYearItem, DEFAULT_FISCAL
 import { getCategoryMeta } from '../constants/categories';
 import { CategoryIcon } from './CategoryIcon';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../utils/format';
 
 interface Props {
   transactions: Transaction[];
@@ -69,14 +70,6 @@ export const TransactionList: React.FC<Props> = ({
   const availableFiscalYears = fiscalYears.length > 0
     ? fiscalYears.map((f) => f.year)
     : (DEFAULT_FISCAL_YEARS as unknown as string[]);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   const formatDateThai = (dateStr: string) => {
     try {
@@ -131,7 +124,7 @@ export const TransactionList: React.FC<Props> = ({
       tx.date,
       tx.type === 'expense' ? 'รายจ่าย' : 'รายรับ',
       `"${tx.category.replace(/"/g, '""')}"`,
-      tx.amount,
+      Number(tx.amount || 0).toFixed(2),
       `"${(tx.note || '').replace(/"/g, '""')}"`,
     ]);
 

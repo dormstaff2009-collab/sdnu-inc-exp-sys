@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Trash2, Check, Sparkles, Building2, Calendar, ClipboardPaste } from 'lucide-react';
 import { CategoryItem, Transaction, TransactionType, BUILDINGS, FiscalYearItem, DEFAULT_FISCAL_YEARS } from '../types/finance';
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../constants/categories';
+import { formatCurrency } from '../utils/format';
 
 interface BatchRow {
   id: string;
@@ -132,11 +133,13 @@ export const BatchTransactionModal: React.FC<Props> = ({
 
         // Clean amount string (remove comma, currency symbols)
         const cleanAmt = amtStr.replace(/[^0-9.]/g, '');
+        const numAmt = parseFloat(cleanAmt);
+        const formattedAmt = !isNaN(numAmt) ? numAmt.toFixed(2) : cleanAmt;
 
         parsedRows.push({
           id: `row-${Math.random().toString(36).substring(2, 9)}`,
           category: cat || currentCategoryList[0]?.name || '',
-          amount: cleanAmt,
+          amount: formattedAmt,
           note: nt,
           building: bld,
         });
@@ -172,7 +175,7 @@ export const BatchTransactionModal: React.FC<Props> = ({
         fiscalYear,
         building: r.building || commonBuilding,
         type,
-        amount: parseFloat(r.amount),
+        amount: Math.round((parseFloat(r.amount) || 0) * 100) / 100,
         category: r.category.trim(),
         date,
         note: (r.note || '').trim(),
@@ -393,9 +396,14 @@ export const BatchTransactionModal: React.FC<Props> = ({
                   <input
                     type="number"
                     min="0"
-                    step="any"
+                    step="0.01"
                     value={row.amount}
                     onChange={(e) => handleRowChange(row.id, 'amount', e.target.value)}
+                    onBlur={() => {
+                      if (row.amount && !isNaN(parseFloat(row.amount))) {
+                        handleRowChange(row.id, 'amount', (Math.round(parseFloat(row.amount) * 100) / 100).toFixed(2));
+                      }
+                    }}
                     placeholder="0.00"
                     className="w-full text-xs p-1.5 rounded-lg border border-slate-200 text-right font-bold text-indigo-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
@@ -439,7 +447,7 @@ export const BatchTransactionModal: React.FC<Props> = ({
             รายการพร้อมบันทึก: <strong className="text-slate-800">{rows.filter(r => parseFloat(r.amount) > 0).length}</strong> รายการ
             {rows.filter(r => parseFloat(r.amount) > 0).length > 0 && (
               <span className="ml-2 font-bold text-indigo-600">
-                (รวม {new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(
+                (รวม {formatCurrency(
                   rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
                 )})
               </span>

@@ -75,7 +75,7 @@ export const TransactionFormModal: React.FC<Props> = ({
         setFiscalYear(initialData.fiscalYear || availableFiscalYears[availableFiscalYears.length - 2] || 'ปี งปม.2569');
         setBuilding(initialData.building || BUILDINGS[0]);
         setType(initialData.type || 'expense');
-        setAmount(initialData.amount ? initialData.amount.toString() : '');
+        setAmount(initialData.amount ? Number(initialData.amount).toFixed(2) : '');
         setCategory(initialData.category || '');
         setDate(initialData.date || new Date().toISOString().split('T')[0]);
         setNote(initialData.note || '');
@@ -105,7 +105,7 @@ export const TransactionFormModal: React.FC<Props> = ({
 
   const handleAddAmount = (addVal: number) => {
     const current = parseFloat(amount) || 0;
-    setAmount((current + addVal).toString());
+    setAmount((current + addVal).toFixed(2));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,7 +122,7 @@ export const TransactionFormModal: React.FC<Props> = ({
       return;
     }
 
-    const parsedAmount = parseFloat(amount);
+    const parsedAmount = Math.round((parseFloat(amount) || 0) * 100) / 100;
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setValidationError('กรุณาระบุจำนวนเงินที่มากกว่า 0');
       return;
@@ -276,11 +276,16 @@ export const TransactionFormModal: React.FC<Props> = ({
               </span>
               <input
                 type="number"
-                step="any"
+                step="0.01"
                 min="0.01"
                 required
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onBlur={() => {
+                  if (amount && !isNaN(parseFloat(amount))) {
+                    setAmount(parseFloat(amount).toFixed(2));
+                  }
+                }}
                 placeholder="0.00"
                 className={`w-full pl-11 pr-4 py-2.5 rounded-2xl border text-2xl font-black focus:outline-none focus:ring-2 transition-all ${
                   type === 'expense'

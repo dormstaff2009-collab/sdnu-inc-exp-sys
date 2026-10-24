@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CategorySummary, TransactionType } from '../types/finance';
 import { CategoryIcon } from './CategoryIcon';
 import { getCategoryMeta } from '../constants/categories';
+import { formatCurrency } from '../utils/format';
 
 interface Props {
   summaries: CategorySummary[];
@@ -27,14 +28,6 @@ export const PieChart: React.FC<Props> = ({
     (type === 'expense'
       ? 'แผนภูมิวงกลมแสดงสัดส่วนรายจ่าย'
       : 'แผนภูมิวงกลมแสดงสัดส่วนรายรับ');
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('th-TH', {
-      style: 'currency',
-      currency: 'THB',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   // SVG parameters
   const strokeWidth = 28;
