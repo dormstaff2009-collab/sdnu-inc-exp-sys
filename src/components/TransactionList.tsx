@@ -22,6 +22,7 @@ interface Props {
   onEdit: (tx: Transaction) => void;
   onDelete: (id: string) => void;
   onAddNew: () => void;
+  onOpenBatchModal?: () => void;
   onClearAll?: () => void;
   onLoadDemoData?: () => void;
   fiscalYears?: FiscalYearItem[];
@@ -32,6 +33,7 @@ export const TransactionList: React.FC<Props> = ({
   onEdit,
   onDelete,
   onAddNew,
+  onOpenBatchModal,
   onClearAll,
   onLoadDemoData,
   fiscalYears = [],
@@ -46,6 +48,22 @@ export const TransactionList: React.FC<Props> = ({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
   const [isConfirmLoadDemoOpen, setIsConfirmLoadDemoOpen] = useState(false);
+
+  const resetAllFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('all');
+    setFiscalYearFilter('all');
+    setCategoryFilter('all');
+    setBuildingFilter('all');
+  };
+
+  const isFiltered = Boolean(
+    searchTerm.trim() ||
+    typeFilter !== 'all' ||
+    fiscalYearFilter !== 'all' ||
+    categoryFilter !== 'all' ||
+    buildingFilter !== 'all'
+  );
 
   const availableFiscalYears = fiscalYears.length > 0
     ? fiscalYears.map((f) => f.year)
@@ -159,8 +177,19 @@ export const TransactionList: React.FC<Props> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>เพิ่มรายการใหม่</span>
+            <span>เพิ่มรายการ</span>
           </button>
+
+          {/* Bulk Multi-Item Add button */}
+          {isAdmin && onOpenBatchModal && (
+            <button
+              onClick={onOpenBatchModal}
+              title="เพิ่มหลายรายการพร้อมกัน หรือวางข้อมูลจาก Excel"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all cursor-pointer"
+            >
+              <span>+ เพิ่มชุดข้อมูลด่วน (Bulk)</span>
+            </button>
+          )}
 
           {/* Export CSV button */}
           <button
@@ -295,6 +324,21 @@ export const TransactionList: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Active Filter Indicator */}
+      {isFiltered && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200/80 rounded-xl px-3.5 py-2 text-xs text-amber-900 mt-2">
+          <span>
+            กำลังใช้ตัวกรอง: แสดง <strong>{filteredTransactions.length}</strong> จาก <strong>{transactions.length}</strong> รายการ (ซ่อนอยู่ {transactions.length - filteredTransactions.length} รายการ)
+          </span>
+          <button
+            onClick={resetAllFilters}
+            className="font-bold underline text-amber-800 hover:text-amber-950 cursor-pointer ml-2"
+          >
+            ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
+      )}
+
       {/* Transaction List Rows */}
       {filteredTransactions.length === 0 ? (
         <div className="py-14 text-center">
@@ -309,26 +353,26 @@ export const TransactionList: React.FC<Props> = ({
           <p className="text-xs text-slate-400 mt-1">
             {transactions.length === 0
               ? 'คุณสามารถเริ่มต้นบันทึกข้อมูลจริง หรือเลือกโหลดข้อมูลตัวอย่างเพื่อทดสอบระบบได้'
-              : 'ลองเปลี่ยนตัวกรองหรือคำค้นหา'}
+              : `ในระบบมีข้อมูลทั้งหมด ${transactions.length} รายการ แต่ถูกกรองออกโดยเงื่อนไขปัจจุบัน`}
           </p>
-          {isAdmin && (
-            <div className="mt-4 flex items-center justify-center gap-2">
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {transactions.length > 0 && isFiltered && (
+              <button
+                onClick={resetAllFilters}
+                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
+              >
+                ล้างตัวกรองเพื่อดู {transactions.length} รายการทั้งหมด
+              </button>
+            )}
+            {isAdmin && (
               <button
                 onClick={onAddNew}
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs"
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-2xs"
               >
                 + บันทึกรายการใหม่
               </button>
-              {transactions.length === 0 && onLoadDemoData && (
-                <button
-                  onClick={() => setIsConfirmLoadDemoOpen(true)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shadow-2xs"
-                >
-                  โหลดข้อมูลตัวอย่าง
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
         <div className="divide-y divide-slate-100 overflow-y-auto max-h-[500px] mt-1">

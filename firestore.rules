@@ -6,11 +6,13 @@ service cloud.firestore {
     }
 
     match /fiscalYears/{yearId} {
-      allow read, write: if isValidId(yearId);
+      allow read: if true;
+      allow write: if isValidId(yearId);
     }
 
     match /categories/{categoryId} {
-      allow read, write: if isValidId(categoryId);
+      allow read: if true;
+      allow write: if isValidId(categoryId);
     }
 
     match /transactions/{transactionId} {

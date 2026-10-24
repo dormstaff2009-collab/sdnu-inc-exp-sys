@@ -106,6 +106,8 @@ export const TransactionFormModal: React.FC<Props> = ({
     setAmount((current + addVal).toString());
   };
 
+  const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
@@ -145,13 +147,21 @@ export const TransactionFormModal: React.FC<Props> = ({
         amount: parsedAmount,
         category,
         date,
-        note: note.trim() || undefined,
+        note: note.trim() || '',
         updatedAt: new Date().toISOString(),
       });
-      onClose();
-    } catch (err) {
+
+      if (saveAndAddAnother && !isEditing) {
+        // Clear amount and note for next quick entry, keep year, building, type, and date
+        setAmount('');
+        setNote('');
+        setValidationError(null);
+      } else {
+        onClose();
+      }
+    } catch (err: any) {
       console.error('Error saving transaction:', err);
-      setValidationError('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      setValidationError(`บันทึกไม่สำเร็จ: ${err?.message || 'กรุณาลองใหม่อีกครั้ง'}`);
     } finally {
       setLoading(false);
     }
@@ -365,18 +375,29 @@ export const TransactionFormModal: React.FC<Props> = ({
           </div>
 
           {/* Form Actions */}
-          <div className="pt-2 flex gap-2">
+          <div className="pt-2 flex flex-col sm:flex-row gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
             >
               ยกเลิก
             </button>
+            {!isEditing && (
+              <button
+                type="submit"
+                onClick={() => setSaveAndAddAnother(true)}
+                disabled={loading}
+                className="py-2.5 px-3.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <span>บันทึก & เพิ่มต่อทันที</span>
+              </button>
+            )}
             <button
               type="submit"
+              onClick={() => setSaveAndAddAnother(false)}
               disabled={loading}
-              className={`flex-1 py-3 px-4 rounded-xl text-white text-xs font-bold transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2.5 px-4 rounded-xl text-white text-xs font-bold transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 ${
                 type === 'expense'
                   ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-200'
                   : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
@@ -389,7 +410,7 @@ export const TransactionFormModal: React.FC<Props> = ({
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  บันทึกรายการ
+                  บันทึกและปิดหน้าต่าง
                 </>
               )}
             </button>

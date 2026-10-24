@@ -24,6 +24,7 @@ import { BudgetTracker } from './components/BudgetTracker';
 import { TransactionList } from './components/TransactionList';
 import { CategoryBreakdown } from './components/CategoryBreakdown';
 import { TransactionFormModal } from './components/TransactionFormModal';
+import { BatchTransactionModal } from './components/BatchTransactionModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { FiscalYearManagerModal } from './components/FiscalYearManagerModal';
 import { LoginModal } from './components/LoginModal';
@@ -181,6 +182,7 @@ function ExpenseTrackerDashboard() {
   const [fiscalYears, setFiscalYears] = useState<FiscalYearItem[]>(defaultFiscalYears);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isFiscalYearModalOpen, setIsFiscalYearModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -189,6 +191,7 @@ function ExpenseTrackerDashboard() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories'>('dashboard');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>('all');
+  const [showAllMonths, setShowAllMonths] = useState<boolean>(false);
 
   // 1. Sync Categories with Firestore
   useEffect(() => {
@@ -325,32 +328,41 @@ function ExpenseTrackerDashboard() {
     };
   }, []);
 
-  // Filter transactions by selected month, selected building, and selected fiscal year
-  const monthTransactions = useMemo(() => {
+  // Filter transactions for Dashboard (selected month or all months, filtered by building & fiscal year)
+  const dashboardTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      const matchesMonth = t.date && t.date.startsWith(currentMonth);
+      const matchesMonth = showAllMonths || (t.date && t.date.startsWith(currentMonth));
       const matchesBuilding = selectedBuilding === 'all' || t.building === selectedBuilding;
       const matchesFiscalYear = selectedFiscalYear === 'all' || t.fiscalYear === selectedFiscalYear;
       return matchesMonth && matchesBuilding && matchesFiscalYear;
     });
-  }, [transactions, currentMonth, selectedBuilding, selectedFiscalYear]);
+  }, [transactions, currentMonth, showAllMonths, selectedBuilding, selectedFiscalYear]);
+
+  // Filter transactions for Transactions Tab (shows all months by default, honoring top building & fiscal year)
+  const tabTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const matchesBuilding = selectedBuilding === 'all' || t.building === selectedBuilding;
+      const matchesFiscalYear = selectedFiscalYear === 'all' || t.fiscalYear === selectedFiscalYear;
+      return matchesBuilding && matchesFiscalYear;
+    });
+  }, [transactions, selectedBuilding, selectedFiscalYear]);
 
   // Aggregate totals
   const totalIncome = useMemo(() => {
-    return monthTransactions
+    return dashboardTransactions
       .filter((t) => t.type === 'income')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  }, [monthTransactions]);
+  }, [dashboardTransactions]);
 
   const totalExpense = useMemo(() => {
-    return monthTransactions
+    return dashboardTransactions
       .filter((t) => t.type === 'expense')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  }, [monthTransactions]);
+  }, [dashboardTransactions]);
 
   // Category Summaries for Pie Chart & Breakdown
   const categorySummaries = useMemo(() => {
-    const targetTransactions = monthTransactions.filter((t) => t.type === chartType);
+    const targetTransactions = dashboardTransactions.filter((t) => t.type === chartType);
     const targetTotal = chartType === 'expense' ? totalExpense : totalIncome;
 
     const map = new Map<string, { total: number; count: number }>();
@@ -376,7 +388,7 @@ function ExpenseTrackerDashboard() {
     });
 
     return result.sort((a, b) => b.total - a.total);
-  }, [monthTransactions, chartType, totalExpense, totalIncome, categories]);
+  }, [dashboardTransactions, chartType, totalExpense, totalIncome, categories]);
 
   // Category CRUD (Admin only)
   const handleAddCategory = async (newCat: Omit<CategoryItem, 'id'>) => {
@@ -510,42 +522,72 @@ function ExpenseTrackerDashboard() {
 
   // Transaction CRUD
   const handleSaveTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
+    // Sanitize data to guarantee valid values for Firestore
+    const cleanData = {
+      fiscalYear: data.fiscalYear || 'ปี งปม.2569',
+      building: data.building || BUILDINGS[0],
+      type: data.type || 'expense',
+      amount: Number(data.amount) || 0,
+      category: data.category || 'อื่นๆ',
+      date: data.date || new Date().toISOString().split('T')[0],
+      note: (data.note || '').trim(),
+      updatedAt: new Date().toISOString(),
+    };
+
     if (editingTransaction && editingTransaction.id) {
       const docId = editingTransaction.id;
       try {
         const docRef = doc(db, 'transactions', docId);
-        await setDoc(
-          docRef,
-          {
-            ...data,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
+        await setDoc(docRef, cleanData, { merge: true });
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === docId ? { ...t, ...cleanData } : t))
         );
-      } catch (err) {
-        console.warn('Update Firestore transaction:', err);
+      } catch (err: any) {
+        console.error('Update Firestore transaction error:', err);
+        throw err;
       }
-      setTransactions((prev) =>
-        prev.map((t) => (t.id === docId ? { ...t, ...data } : t))
-      );
     } else {
       try {
         const colRef = collection(db, 'transactions');
         const docRef = await addDoc(colRef, {
-          ...data,
+          ...cleanData,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         });
-        setTransactions((prev) => [{ id: docRef.id, ...data }, ...prev]);
-      } catch (err) {
-        console.warn('Add Firestore transaction:', err);
-        const newTx: Transaction = {
-          id: `tx-${Date.now()}`,
-          ...data,
-          createdAt: new Date().toISOString(),
-        };
-        setTransactions((prev) => [newTx, ...prev]);
+        const saved: Transaction = { id: docRef.id, ...cleanData, createdAt: new Date().toISOString() };
+        setTransactions((prev) => [saved, ...prev.filter((t) => t.id !== docRef.id)]);
+      } catch (err: any) {
+        console.error('Add Firestore transaction error:', err);
+        throw err;
       }
+    }
+  };
+
+  const handleBatchSaveTransactions = async (items: Array<Omit<Transaction, 'id' | 'createdAt'>>) => {
+    try {
+      const colRef = collection(db, 'transactions');
+      const now = new Date().toISOString();
+      const added: Transaction[] = [];
+
+      for (const item of items) {
+        const cleanData = {
+          fiscalYear: item.fiscalYear || 'ปี งปม.2569',
+          building: item.building || BUILDINGS[0],
+          type: item.type || 'expense',
+          amount: Number(item.amount) || 0,
+          category: item.category || 'อื่นๆ',
+          date: item.date || now.split('T')[0],
+          note: (item.note || '').trim(),
+          createdAt: now,
+          updatedAt: now,
+        };
+        const docRef = await addDoc(colRef, cleanData);
+        added.push({ id: docRef.id, ...cleanData });
+      }
+
+      setTransactions((prev) => [...added, ...prev]);
+    } catch (err: any) {
+      console.error('Batch save transactions error:', err);
+      throw err;
     }
   };
 
@@ -722,7 +764,7 @@ function ExpenseTrackerDashboard() {
               }`}
             >
               <ListFilter className="w-4 h-4" />
-              <span>รายการทั้งหมด ({monthTransactions.length})</span>
+              <span>รายการทั้งหมด ({transactions.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('categories')}
@@ -869,6 +911,49 @@ function ExpenseTrackerDashboard() {
               })}
             </div>
           </div>
+
+          {/* Additional Filter Helpers: Month Scope Toggle & Reset All */}
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">ช่วงเวลาแดชบอร์ด:</span>
+              <button
+                type="button"
+                onClick={() => setShowAllMonths(false)}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  !showAllMonths
+                    ? 'bg-indigo-100 text-indigo-800'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                เฉพาะเดือนที่เลือก ({currentMonth})
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAllMonths(true)}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  showAllMonths
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                ดูทุกเดือน (ภาพรวมทั้งปี/ทั้งหมด)
+              </button>
+            </div>
+
+            {(selectedFiscalYear !== 'all' || selectedBuilding !== 'all' || showAllMonths) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFiscalYear('all');
+                  setSelectedBuilding('all');
+                  setShowAllMonths(false);
+                }}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
+              >
+                รีเซ็ตตัวกรองทั้งหมด (แสดงข้อมูลครบทั้ง {transactions.length} รายการ)
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 1. Summary Cards */}
@@ -937,10 +1022,11 @@ function ExpenseTrackerDashboard() {
 
             {/* Transaction List */}
             <TransactionList
-              transactions={monthTransactions}
+              transactions={dashboardTransactions}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteTransaction}
               onAddNew={handleOpenAddModal}
+              onOpenBatchModal={() => setIsBatchModalOpen(true)}
               onClearAll={handleClearAllTransactions}
               onLoadDemoData={handleLoadDemoData}
               fiscalYears={fiscalYears}
@@ -951,10 +1037,11 @@ function ExpenseTrackerDashboard() {
         {/* 3. Transactions Tab */}
         {activeTab === 'transactions' && (
           <TransactionList
-            transactions={monthTransactions}
+            transactions={tabTransactions}
             onEdit={handleOpenEditModal}
             onDelete={handleDeleteTransaction}
             onAddNew={handleOpenAddModal}
+            onOpenBatchModal={() => setIsBatchModalOpen(true)}
             onClearAll={handleClearAllTransactions}
             onLoadDemoData={handleLoadDemoData}
             fiscalYears={fiscalYears}
@@ -1033,6 +1120,17 @@ function ExpenseTrackerDashboard() {
         initialData={editingTransaction}
         categories={categories}
         fiscalYears={fiscalYears}
+      />
+
+      {/* Batch / Multi-Item Transaction Modal */}
+      <BatchTransactionModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        onSaveBatch={handleBatchSaveTransactions}
+        categories={categories}
+        fiscalYears={fiscalYears}
+        defaultFiscalYear={selectedFiscalYear}
+        defaultBuilding={selectedBuilding}
       />
 
       {/* Fiscal Year Manager Modal (Add / Delete fiscal years) */}
